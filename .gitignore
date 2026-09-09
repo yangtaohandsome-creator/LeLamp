@@ -11,3 +11,4 @@ wheels/
 
 # .env variables
 .env
+kws_models/

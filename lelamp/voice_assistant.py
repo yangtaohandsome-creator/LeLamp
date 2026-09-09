@@ -16,7 +16,6 @@ from pathlib import Path
 import httpx
 import numpy as np
 import sherpa_onnx
-import sounddevice as sd
 import websockets
 from dotenv import load_dotenv
 
@@ -63,6 +62,17 @@ def read_capture_block(capture: subprocess.Popen) -> np.ndarray:
         raise RuntimeError("arecord stopped unexpectedly")
     stereo = np.frombuffer(raw, dtype="<i2").reshape(-1, 2).astype(np.float32)
     return (stereo.mean(axis=1)[::3] / 32768.0).copy()
+
+
+def stop_capture(capture: subprocess.Popen) -> None:
+    capture.terminate()
+    try:
+        capture.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        capture.kill()
+        capture.wait()
+    if capture.stdout is not None:
+        capture.stdout.close()
 
 
 def capture_utterance(read_block) -> np.ndarray | None:
@@ -146,12 +156,13 @@ def speak(text: str) -> None:
     response = httpx.post(tts_url, json={"text": text}, timeout=90)
     response.raise_for_status()
     with wave.open(io.BytesIO(response.content), "rb") as wav:
-        data = np.frombuffer(wav.readframes(wav.getnframes()), dtype="<i2")
-        channels = wav.getnchannels()
-        if channels > 1:
-            data = data.reshape(-1, channels)
-        sd.play(data, wav.getframerate(), device=os.getenv("PLAYBACK_DEVICE") or None)
-        sd.wait()
+        if wav.getcomptype() != "NONE":
+            raise ValueError("TTS must return an uncompressed WAV")
+    subprocess.run(
+        ["aplay", "-q", "-D",
+         os.getenv("APLAY_DEVICE", "plughw:seeed2micvoicec,0"), "-t", "wav"],
+        input=response.content, check=True, timeout=120,
+    )
 
 
 def main() -> None:
@@ -174,16 +185,24 @@ def main() -> None:
             utterance = capture_utterance(lambda: read_capture_block(capture))
             if utterance is None:
                 continue
-            text = asyncio.run(transcribe(utterance))
-            print(f"ASR: {text}", flush=True)
-            if not text:
-                continue
-            answer = ask_llm(text)
-            print(f"LLM: {answer}", flush=True)
-            speak(answer)
+            # Release the capture clock before playback and discard buffered audio.
+            stop_capture(capture)
+            capture = None
+            try:
+                text = asyncio.run(asyncio.wait_for(transcribe(utterance), timeout=45))
+                print(f"ASR: {text}", flush=True)
+                if text:
+                    answer = ask_llm(text)
+                    print(f"LLM: {answer}", flush=True)
+                    speak(answer)
+            except Exception as exc:
+                print(f"Voice turn failed: {exc}", file=sys.stderr, flush=True)
+            capture = start_capture()
+            stream = spotter.create_stream()
+            print("Ready. Say: 老灯", flush=True)
     finally:
-        capture.terminate()
-        capture.wait()
+        if capture is not None:
+            stop_capture(capture)
 
 
 if __name__ == "__main__":

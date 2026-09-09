@@ -151,18 +151,23 @@ def ask_llm(text: str) -> str:
     return response.json()["choices"][0]["message"]["content"].strip()
 
 
-def speak(text: str) -> None:
+def speak(text: str) -> tuple[float, float]:
     tts_url = os.getenv("TTS_URL", "http://192.168.40.209:8200/v1/tts/stream")
+    tts_started = time.perf_counter()
     response = httpx.post(tts_url, json={"text": text}, timeout=90)
     response.raise_for_status()
+    tts_seconds = time.perf_counter() - tts_started
     with wave.open(io.BytesIO(response.content), "rb") as wav:
         if wav.getcomptype() != "NONE":
             raise ValueError("TTS must return an uncompressed WAV")
+    playback_started = time.perf_counter()
     subprocess.run(
         ["aplay", "-q", "-D",
          os.getenv("APLAY_DEVICE", "plughw:seeed2micvoicec,0"), "-t", "wav"],
         input=response.content, check=True, timeout=120,
     )
+    playback_seconds = time.perf_counter() - playback_started
+    return tts_seconds, playback_seconds
 
 
 def main() -> None:
@@ -182,19 +187,35 @@ def main() -> None:
             if not spotter.get_result(stream):
                 continue
             spotter.reset_stream(stream)
+            turn_started = time.perf_counter()
+            listen_started = time.perf_counter()
             utterance = capture_utterance(lambda: read_capture_block(capture))
+            listen_seconds = time.perf_counter() - listen_started
+            print(f"LISTEN END | 延迟: {listen_seconds:.2f} 秒", flush=True)
             if utterance is None:
                 continue
             # Release the capture clock before playback and discard buffered audio.
             stop_capture(capture)
             capture = None
             try:
+                asr_started = time.perf_counter()
                 text = asyncio.run(asyncio.wait_for(transcribe(utterance), timeout=45))
+                asr_seconds = time.perf_counter() - asr_started
                 print(f"ASR: {text}", flush=True)
+                print(f"ASR 延迟: {asr_seconds:.2f} 秒", flush=True)
                 if text:
+                    llm_started = time.perf_counter()
                     answer = ask_llm(text)
+                    llm_seconds = time.perf_counter() - llm_started
                     print(f"LLM: {answer}", flush=True)
-                    speak(answer)
+                    print(f"LLM 延迟: {llm_seconds:.2f} 秒", flush=True)
+                    tts_seconds, playback_seconds = speak(answer)
+                    print(f"TTS 延迟: {tts_seconds:.2f} 秒", flush=True)
+                    print(f"播放耗时: {playback_seconds:.2f} 秒", flush=True)
+                    print(
+                        f"本轮总耗时: {time.perf_counter() - turn_started:.2f} 秒",
+                        flush=True,
+                    )
             except Exception as exc:
                 print(f"Voice turn failed: {exc}", file=sys.stderr, flush=True)
             capture = start_capture()

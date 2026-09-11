@@ -2,6 +2,9 @@
 
 更新：2026-09-11。按新架构入口整理；本文件在项目根目录、runtime 和 Pi5 保持一致。
 
+> **密钥位置**：本文件不写任何 API Key / Token 明文，所有凭据统一存放在本机的 [LELAMP_SECRETS.local.md](../LELAMP_SECRETS.local.md)。
+> 该文件不在 Git 仓库内，所以在 GitHub 网页上这个链接打不开——这是有意的，不是坏链。
+
 ## 1. 固定配置与进入项目
 
 | 项目 | 当前值 |
@@ -46,7 +49,7 @@ cd /home/lamppi/lelamp_runtime
 
 `lelamp.app` 同时提供局域网文本入口 `POST /api/v1/agent/text`。远程文本跳过 KWS、VAD 和 ASR，之后复用同一个 OpenClaw Agent、高层 Tools、动作仲裁和 TTS 播报。无需部署网站，也不要向局域网公开 OpenClaw Gateway 或底层 Tool 端口。
 
-远程接口监听地址和端口由 `voice.conf` 的 `LELAMP_REMOTE_BIND`、`LELAMP_REMOTE_PORT` 设置；独立 Bearer Token 只放在 `.env` 的 `LELAMP_REMOTE_TOKEN`。相同 `request_id` 的重试返回缓存结果，不重复执行动作；同一对话持续复用 `session_id`。
+远程接口监听地址和端口由 `voice.conf` 的 `LELAMP_REMOTE_BIND`、`LELAMP_REMOTE_PORT` 设置；独立 Bearer Token 只放在 `.env` 的 `LELAMP_REMOTE_TOKEN`，值见 [本机凭据汇总](../LELAMP_SECRETS.local.md)。相同 `request_id` 的重试返回缓存结果，不重复执行动作；同一对话持续复用 `session_id`。
 
 ## 2. 麦克风和扬声器
 
@@ -404,7 +407,7 @@ curl -fL https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sile
 
 LLM 人格和行为规则采用 OpenClaw 风格文件，位于 runtime 根目录：`IDENTITY.md` 定义身份，`SOUL.md` 定义人格与说话风格，`AGENTS.md` 定义交互规则。语音助手每次调用 LLM 时自动读取这三个文件并组合成系统提示词；修改后重启程序生效。
 
-启动前确认 `~/lelamp_runtime/.env` 已配置 `LLM_BASE_URL`、`OPENAI_API_KEY`、`LLM_MODEL`、`ASR_WS_URL` 和 `TTS_URL`。密钥只放在 Pi 的 `.env` 中，不要提交到 GitHub。
+启动前确认 `~/lelamp_runtime/.env` 已配置 `LLM_BASE_URL`、`OPENAI_API_KEY`、`LLM_MODEL`、`ASR_WS_URL` 和 `TTS_URL`。密钥只放在 Pi 的 `.env` 中，不要提交到 GitHub；各项当前的实际值见 [本机凭据汇总](../LELAMP_SECRETS.local.md)。
 
 连续对话和唤醒参数：
 
@@ -498,19 +501,20 @@ MCP server 配置在 Pi5 的 `~/.openclaw/openclaw.json`，键名是 **`mcp.serv
 
 ### 添加步骤
 
-`openclaw mcp add` 会在保存前先连接探测，配置错误不会写进文件：
+智谱 Key 到 [本机凭据汇总](../LELAMP_SECRETS.local.md) 的「智谱联网搜索 MCP」一节取。`openclaw mcp add` 会在保存前先连接探测，配置错误不会写进文件：
 
 ```bash
 export PATH="/home/lamppi/.local/bin:$PATH"
+ZHIPU_API_KEY='到凭据汇总文档取智谱 Key'
 
 openclaw mcp add zhipu-web-search-sse \
-  --url 'https://open.bigmodel.cn/api/mcp-broker/proxy/web-search/mcp?Authorization=<ZHIPU_API_KEY>' \
+  --url "https://open.bigmodel.cn/api/mcp-broker/proxy/web-search/mcp?Authorization=$ZHIPU_API_KEY" \
   --transport streamable-http \
   --exclude 'webSearchSogou,webSearchQuark,webSearchPro' \
   --timeout 20
 ```
 
-- `<ZHIPU_API_KEY>` 换成智谱开放平台的 Key。**真实 Key 只存在 Pi5，不写入本文件、不提交 Git。** 完整凭据见本机仓库外的汇总文档。
+> 上面用变量是为了不把 Key 写进命令历史。**真实 Key 只存在 Pi5，不写入本文件、不提交 Git。**
 - `--exclude` 关掉搜狗、夸克和 Pro 三个引擎，只留 `webSearchStd`（基础版），更快更省。若实测结果过于单薄，把 `webSearchPro` 从 `--exclude` 移出即可，代价是更慢更贵。
 - `--timeout 20` 把单次搜索限制在 20 秒。默认 60 秒会顶穿 `lelamp/agent/openclaw.py` 里 `httpx` 的 60 秒超时，届时语音端只会播报“脑子暂时连不上”，掩盖真实错误。
 

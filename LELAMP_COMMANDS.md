@@ -1,6 +1,6 @@
 # LeLamp 常用测试与动作命令（lamppi）
 
-更新：2026-09-10。按新架构入口整理；本文件在项目根目录、runtime 和 Pi5 保持一致。
+更新：2026-09-11。按新架构入口整理；本文件在项目根目录、runtime 和 Pi5 保持一致。
 
 ## 1. 固定配置与进入项目
 
@@ -485,6 +485,73 @@ aplay -D plughw:seeed2micvoicec,0 voice_debug/文件名_capture.wav
 ```
 
 `main.py` 和 `smooth_animation.py` 保留为旧 LiveKit 示例，不是当前应用入口。日常统一使用 `uv run --no-sync -m lelamp.app`。
+
+## 12. OpenClaw 联网搜索（MCP）
+
+老灯回答天气、交通、新闻等实时信息时，由 OpenClaw 调用智谱 Web Search MCP 搜索。搜索属于 Agent 层能力，**不经过 `lelamp/` 的 Python 代码**，Pi 上的 app 不需要任何改动；语音入口和局域网文本入口自动共用同一套搜索，不要为它新增 `lelamp_*` 工具或本地网关。
+
+### 配置位置与两个易错点
+
+MCP server 配置在 Pi5 的 `~/.openclaw/openclaw.json`，键名是 **`mcp.servers`**（嵌套）。官方文档与社区文档同时存在顶层 `mcpServers` 的写法，在本机 OpenClaw 2026.9.4 上无效，不要照抄。
+
+智谱搜索代理的实际传输协议是 **`streamable-http`**。服务名虽然叫 `zhipu-web-search-sse`，但用 SSE 连接会被拒绝（HTTP 400）。
+
+### 添加步骤
+
+`openclaw mcp add` 会在保存前先连接探测，配置错误不会写进文件：
+
+```bash
+export PATH="/home/lamppi/.local/bin:$PATH"
+
+openclaw mcp add zhipu-web-search-sse \
+  --url 'https://open.bigmodel.cn/api/mcp-broker/proxy/web-search/mcp?Authorization=<ZHIPU_API_KEY>' \
+  --transport streamable-http \
+  --exclude 'webSearchSogou,webSearchQuark,webSearchPro' \
+  --timeout 20
+```
+
+- `<ZHIPU_API_KEY>` 换成智谱开放平台的 Key。**真实 Key 只存在 Pi5，不写入本文件、不提交 Git。** 完整凭据见本机仓库外的汇总文档。
+- `--exclude` 关掉搜狗、夸克和 Pro 三个引擎，只留 `webSearchStd`（基础版），更快更省。若实测结果过于单薄，把 `webSearchPro` 从 `--exclude` 移出即可，代价是更慢更贵。
+- `--timeout 20` 把单次搜索限制在 20 秒。默认 60 秒会顶穿 `lelamp/agent/openclaw.py` 里 `httpx` 的 60 秒超时，届时语音端只会播报“脑子暂时连不上”，掩盖真实错误。
+
+### 必须把工具加进白名单
+
+`openclaw.json` 的 `tools.profile` 为 `minimal`，工具靠 `tools.alsoAllow` 放行。**漏加白名单会导致 Agent 完全看不到搜索工具**，与早前 `lelamp_queue_expression` 的问题同源。
+
+工具名带服务名前缀，此处为 `zhipu-web-search-sse__webSearchStd`：
+
+```bash
+openclaw config patch --stdin <<'JSON'
+{"tools": {"alsoAllow": ["lelamp_play_motion", "lelamp_set_light", "lelamp_enter_work_light", "lelamp_update_work_light", "lelamp_exit_work_light", "lelamp_sleep", "lelamp_get_robot_state", "lelamp_queue_expression", "zhipu-web-search-sse__webSearchStd"]}}
+JSON
+```
+
+`alsoAllow` 是数组，patch 时**整体替换**，必须带上原有全部元素，否则会丢掉已有的 LeLamp 工具。
+
+### 生效与排错
+
+```bash
+openclaw mcp list                          # 已配置的 server
+openclaw mcp probe --json                  # 探测连接并列出工具名
+openclaw mcp reload                        # 丢弃 MCP 运行时缓存，下一回合生效
+openclaw mcp configure <name> --disable    # 临时停用
+```
+
+改配置不需要重启 Gateway，`config patch` 会热加载。工具不可见时先查白名单，再 `mcp reload`。
+
+日志在 `/tmp/openclaw/openclaw-<日期>.log`。搜索失败的具体原因（鉴权、余额、超时）记在 `[tools] ...` 行内。若该行提示“您的账户已欠费”，那是智谱账号余额问题，与本机配置无关，充值后即刻恢复。
+
+### 行为由人格文件约束
+
+`AGENTS.md` 第 6 条规定：实时信息先搜索再回答，搜索失败才说明拿不到，且搜索结果只作要点用一两句话转述，不整段朗读。调整老灯的搜索行为改这里，不必改代码。
+
+### 验证
+
+```bash
+openclaw agent --agent lelamp -m "今天上海天气怎么样？" --json
+```
+
+正常时输出里 `toolSummary.tools` 会出现 `zhipu-web-search-sse__websearchstd`，且 `failures` 为 `0`。
 
 ## 来源和验证范围
 

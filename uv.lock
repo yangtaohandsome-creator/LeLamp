@@ -1013,6 +1013,7 @@ name = "lelamp-runtime"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "aiohttp" },
     { name = "feetech-servo-sdk" },
     { name = "httpx" },
     { name = "lerobot" },
@@ -1039,6 +1040,7 @@ hardware = [
 [package.metadata]
 requires-dist = [
     { name = "adafruit-circuitpython-neopixel", marker = "extra == 'hardware'" },
+    { name = "aiohttp", specifier = ">=3.12.0" },
     { name = "feetech-servo-sdk", specifier = ">=1.0.0" },
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "lerobot", git = "https://github.com/huggingface/lerobot" },

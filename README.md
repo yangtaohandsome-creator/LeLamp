@@ -1,5 +1,10 @@
 # LeLamp Runtime
 
+当前主入口：`uv run --no-sync -m lelamp.app`。原来的
+`python -m lelamp.voice_assistant`、record、replay、sleep 命令继续兼容。
+架构与迁移说明见 [ARCHITECTURE.md](ARCHITECTURE.md)，可复制命令见
+[LELAMP_COMMANDS.md](LELAMP_COMMANDS.md)。
+
 ![](./assets/images/Banner.png)
 
 This repository holds the code for controlling LeLamp. The runtime provides a comprehensive control system for the robotic lamp, including motor control, recording/replay functionality, voice interaction, and testing capabilities.
@@ -20,7 +25,7 @@ LeLamp Runtime is a Python-based control system that interfaces with the hardwar
 
 ```
 lelamp_runtime/
-├── main.py                 # Main runtime entry point
+├── main.py                 # Legacy LiveKit example
 ├── pyproject.toml         # Project configuration and dependencies
 ├── lelamp/                # Core package
 │   ├── setup_motors.py    # Motor configuration and setup
@@ -28,6 +33,12 @@ lelamp_runtime/
 │   ├── list_recordings.py # List all recorded motor movements
 │   ├── record.py          # Movement recording functionality
 │   ├── replay.py          # Movement replay functionality
+│   ├── app.py             # Conversation, commands, modes and motion handoff
+│   ├── agent/             # Qwen and future OpenClaw integration
+│   ├── voice/             # Audio, KWS, VAD, ASR and streaming TTS
+│   ├── motion/            # Shared playback, recording and sleep implementation
+│   ├── lighting/          # RGB hardware and light functions
+│   ├── vision/            # Reserved for actual camera/vision implementation
 │   ├── follower/          # Follower mode functionality
 │   ├── leader/            # Leader mode functionality
 │   └── test/              # Hardware testing modules

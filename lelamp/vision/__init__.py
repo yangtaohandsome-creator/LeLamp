@@ -1,0 +1,1 @@
+"""LeLamp vision functionality."""

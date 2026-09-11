@@ -160,6 +160,11 @@ class LeLampFollower(Robot):
                 self.bus.write("I_Coefficient", motor, 0)
                 self.bus.write("D_Coefficient", motor, 32)
 
+            # Hold the physical pose that the lamp currently has before torque is
+            # enabled. This prevents a stale goal position from causing a jump.
+            current_positions = self.bus.sync_read("Present_Position", normalize=False)
+            self.bus.sync_write("Goal_Position", current_positions, normalize=False)
+
     def setup_motors(self) -> None:
         for motor in reversed(self.bus.motors):
             input(f"Connect the controller board to the '{motor}' motor only and press enter.")

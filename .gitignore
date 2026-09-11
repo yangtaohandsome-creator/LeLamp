@@ -9,6 +9,11 @@ wheels/
 # Virtual environments
 .venv
 
+# Node dependencies (openclaw-plugin)；构建产物 dist/ 已由上方规则忽略
+node_modules/
+
 # .env variables
 .env
 kws_models/
+vad_models/
+voice_debug/

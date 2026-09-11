@@ -1,0 +1,1 @@
+"""LeLamp voice functionality."""

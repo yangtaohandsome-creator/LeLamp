@@ -1,0 +1,28 @@
+{
+  "id": "lelamp-tools",
+  "name": "LeLamp Tools",
+  "description": "Typed high-level controls for the LeLamp robot.",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["baseUrl", "token"],
+    "properties": {
+      "baseUrl": {"type": "string"},
+      "token": {"type": "string"}
+    }
+  },
+  "activation": {"onStartup": true},
+  "contracts": {
+    "tools": [
+      "lelamp_play_motion",
+      "lelamp_queue_expression",
+      "lelamp_set_light",
+      "lelamp_enter_work_light",
+      "lelamp_update_work_light",
+      "lelamp_exit_work_light",
+      "lelamp_sleep",
+      "lelamp_get_robot_state"
+    ]
+  }
+}

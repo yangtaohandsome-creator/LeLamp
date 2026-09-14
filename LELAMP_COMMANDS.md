@@ -1,6 +1,6 @@
 # LeLamp 常用测试与动作命令（lamppi）
 
-更新：2026-09-11。按新架构入口整理；本文件在项目根目录、runtime 和 Pi5 保持一致。
+更新：2026-09-14。按新架构入口整理；本文件在项目根目录、runtime 和 Pi5 保持一致。
 
 > **密钥位置**：本文件不写任何 API Key / Token 明文，所有凭据统一存放在本机的 [LELAMP_SECRETS.local.md](../LELAMP_SECRETS.local.md)。
 > 该文件不在 Git 仓库内，所以在 GitHub 网页上这个链接打不开——这是有意的，不是坏链。
@@ -491,17 +491,40 @@ aplay -D plughw:seeed2micvoicec,0 voice_debug/文件名_capture.wav
 
 ## 12. OpenClaw 联网搜索（MCP）
 
-老灯回答天气、交通、新闻等实时信息时，由 OpenClaw 调用智谱 Web Search MCP 搜索。搜索属于 Agent 层能力，**不经过 `lelamp/` 的 Python 代码**，Pi 上的 app 不需要任何改动；语音入口和局域网文本入口自动共用同一套搜索，不要为它新增 `lelamp_*` 工具或本地网关。
+老灯回答天气、新闻等实时信息时，由 OpenClaw 调用 MCP 搜索服务。搜索属于 Agent 层能力，**不经过 `lelamp/` 的 Python 代码**，Pi 上的 app 不需要任何改动；语音入口和局域网文本入口自动共用同一套搜索，不要为它新增 `lelamp_*` 工具或本地网关。
 
-### 配置位置与两个易错点
+### 可用的搜索后端
+
+| 服务 | 地址 | 鉴权 | 状态 |
+| --- | --- | --- | --- |
+| 自建 web-search | `http://8.159.128.22:3000/mcp` | 无需 Key | **当前启用** |
+| 智谱 Web Search | `https://open.bigmodel.cn/api/mcp-broker/proxy/web-search/mcp` | 需付费账号 | 当前停用（账号欠费） |
+
+自建服务与 LLM provider 同在 `8.159.128.22`，内网直连。它聚合 Baidu、Bing、DuckDuckGo、Sogou、Exa、Brave 等引擎，单个引擎失败会自动降级（返回 JSON 里带 `partialFailures` 字段）。
+
+### 配置位置与易错点
 
 MCP server 配置在 Pi5 的 `~/.openclaw/openclaw.json`，键名是 **`mcp.servers`**（嵌套）。官方文档与社区文档同时存在顶层 `mcpServers` 的写法，在本机 OpenClaw 2026.9.4 上无效，不要照抄。
 
-智谱搜索代理的实际传输协议是 **`streamable-http`**。服务名虽然叫 `zhipu-web-search-sse`，但用 SSE 连接会被拒绝（HTTP 400）。
+**上面两个服务实际都用 `streamable-http`。** 智谱那个服务名里带 `-sse`，但用 SSE 连接会被拒绝（HTTP 400）。不要凭服务名猜传输协议，`openclaw mcp add` 会在保存前先探测，猜错不会写进配置。
 
-### 添加步骤
+### 添加自建 web-search（当前生效）
 
-智谱 Key 到 [本机凭据汇总](../LELAMP_SECRETS.local.md) 的「智谱联网搜索 MCP」一节取。`openclaw mcp add` 会在保存前先连接探测，配置错误不会写进文件：
+服务端暴露 6 个工具，这里只放行 `search`。其余 5 个是各类文章抓取（GitHub README、CSDN、掘金、linux.do、通用网页），对语音场景是噪声，会白占提示词：
+
+```bash
+export PATH="/home/lamppi/.local/bin:$PATH"
+
+openclaw mcp add web-search \
+  --url 'http://8.159.128.22:3000/mcp' \
+  --transport streamable-http \
+  --include 'search' \
+  --timeout 20
+```
+
+### 添加智谱 Web Search（备用）
+
+需要先给智谱账号充值。Key 到 [本机凭据汇总](../LELAMP_SECRETS.local.md) 的「智谱联网搜索 MCP」一节取：
 
 ```bash
 export PATH="/home/lamppi/.local/bin:$PATH"
@@ -515,18 +538,20 @@ openclaw mcp add zhipu-web-search-sse \
 ```
 
 > 上面用变量是为了不把 Key 写进命令历史。**真实 Key 只存在 Pi5，不写入本文件、不提交 Git。**
-- `--exclude` 关掉搜狗、夸克和 Pro 三个引擎，只留 `webSearchStd`（基础版），更快更省。若实测结果过于单薄，把 `webSearchPro` 从 `--exclude` 移出即可，代价是更慢更贵。
-- `--timeout 20` 把单次搜索限制在 20 秒。默认 60 秒会顶穿 `lelamp/agent/openclaw.py` 里 `httpx` 的 60 秒超时，届时语音端只会播报“脑子暂时连不上”，掩盖真实错误。
+
+两个服务都配好后，用 `openclaw mcp configure <name> --disable / --enable` 决定哪个生效。**不要同时启用**，否则模型会在两个搜索工具之间犹豫。
+
+`--timeout 20` 把单次搜索限制在 20 秒。默认 60 秒会顶穿 `lelamp/agent/openclaw.py` 里 `httpx` 的 60 秒超时，届时语音端只会播报“脑子暂时连不上”，掩盖真实错误。
 
 ### 必须把工具加进白名单
 
 `openclaw.json` 的 `tools.profile` 为 `minimal`，工具靠 `tools.alsoAllow` 放行。**漏加白名单会导致 Agent 完全看不到搜索工具**，与早前 `lelamp_queue_expression` 的问题同源。
 
-工具名带服务名前缀，此处为 `zhipu-web-search-sse__webSearchStd`：
+工具名带服务名前缀，两个服务分别是 `web-search__search` 和 `zhipu-web-search-sse__webSearchStd`：
 
 ```bash
 openclaw config patch --stdin <<'JSON'
-{"tools": {"alsoAllow": ["lelamp_play_motion", "lelamp_set_light", "lelamp_enter_work_light", "lelamp_update_work_light", "lelamp_exit_work_light", "lelamp_sleep", "lelamp_get_robot_state", "lelamp_queue_expression", "zhipu-web-search-sse__webSearchStd"]}}
+{"tools": {"alsoAllow": ["lelamp_play_motion", "lelamp_set_light", "lelamp_enter_work_light", "lelamp_update_work_light", "lelamp_exit_work_light", "lelamp_sleep", "lelamp_get_robot_state", "lelamp_queue_expression", "web-search__search", "zhipu-web-search-sse__webSearchStd"]}}
 JSON
 ```
 
@@ -536,26 +561,47 @@ JSON
 
 ```bash
 openclaw mcp list                          # 已配置的 server
-openclaw mcp probe --json                  # 探测连接并列出工具名
+openclaw mcp probe --json                  # 探测连接，列出工具名与 timeout
 openclaw mcp reload                        # 丢弃 MCP 运行时缓存，下一回合生效
-openclaw mcp configure <name> --disable    # 临时停用
+openclaw mcp configure <name> --disable    # 停用
+openclaw mcp configure <name> --enable     # 启用
 ```
 
 改配置不需要重启 Gateway，`config patch` 会热加载。工具不可见时先查白名单，再 `mcp reload`。
 
-日志在 `/tmp/openclaw/openclaw-<日期>.log`。搜索失败的具体原因（鉴权、余额、超时）记在 `[tools] ...` 行内。若该行提示“您的账户已欠费”，那是智谱账号余额问题，与本机配置无关，充值后即刻恢复。
+日志在 `/tmp/openclaw/openclaw-<日期>.log`。搜索失败的具体原因（鉴权、余额、超时）记在 `[tools] ...` 行内。若该行提示“您的账户已欠费”，那是智谱账号余额问题，与本机配置无关。
 
 ### 行为由人格文件约束
 
 `AGENTS.md` 第 6 条规定：实时信息先搜索再回答，搜索失败才说明拿不到，且搜索结果只作要点用一两句话转述，不整段朗读。调整老灯的搜索行为改这里，不必改代码。
 
-### 验证
+### 验证与实测基线
+
+下面这条命令和 `lelamp/agent/openclaw.py` 发出的请求完全一致，是验证真实链路最快的办法——不需要启动 app，不占串口和麦克风：
 
 ```bash
-openclaw agent --agent lelamp -m "今天上海天气怎么样？" --json
+set -a; . ~/lelamp_runtime/.env; set +a
+curl -sS -X POST http://127.0.0.1:18789/v1/chat/completions \
+  -H "Authorization: Bearer $OPENCLAW_GATEWAY_TOKEN" \
+  -H "x-openclaw-agent-id: lelamp" -H 'Content-Type: application/json' \
+  -d '{"model":"openclaw/lelamp","messages":[{"role":"user","content":"今天上海天气怎么样？"}],"user":"lelamp-test","stream":false,"max_tokens":512}'
 ```
 
-正常时输出里 `toolSummary.tools` 会出现 `zhipu-web-search-sse__websearchstd`，且 `failures` 为 `0`。
+2026-09-14 实测（自建 web-search）：
+
+| 问题 | 耗时 | 结果 |
+| --- | --- | --- |
+| 今天上海天气怎么样 | 8.8 s | 正常，给出具体天气 |
+| 上海的交通状况怎么样 | 7.8 s | 如实说拿不到实时路况 |
+| 最近有什么科技新闻 | 20.3 s | 正常，但输出偏长 |
+
+注意 `voice.conf` 的 `OPENCLAW_MAX_TOKENS`（默认 512）是**每次模型调用**的上限，不是整轮上限；OpenClaw 内部会多次调用，整轮 completion 总量可能远超 512。实测天气轮整轮约 350–1150 tokens，不会因此失败。早前“512 全耗在隐藏思考”的问题由 Pi5 侧的 `compat.thinkingFormat` 配置解决，与这个数字无关。
+
+### 已知限制
+
+- **实时路况查不到。** 网页搜索给的是新闻和网页摘要，不是实时交通数据。老灯会如实说拿不到，这是正确行为，不要试图靠提示词让它编一个。
+- **宽泛问题输出会变长。** 问“最近有什么科技新闻”时，`AGENTS.md` 要求的一两句话约束会被突破，模型会列清单，语音播报明显变长。需要时在人格文件里进一步收紧。
+- **延迟波动大。** 单次搜索约 0.7 秒，但整轮对话 8–20 秒不等，思考灯效期间会静默较久。
 
 ## 来源和验证范围
 

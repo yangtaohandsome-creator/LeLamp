@@ -551,7 +551,7 @@ openclaw mcp add zhipu-web-search-sse \
 
 ```bash
 openclaw config patch --stdin <<'JSON'
-{"tools": {"alsoAllow": ["lelamp_play_motion", "lelamp_set_light", "lelamp_enter_work_light", "lelamp_update_work_light", "lelamp_exit_work_light", "lelamp_sleep", "lelamp_get_robot_state", "lelamp_queue_expression", "web-search__search", "zhipu-web-search-sse__webSearchStd"]}}
+{"tools": {"alsoAllow": ["lelamp_play_motion", "lelamp_set_light", "lelamp_enter_work_light", "lelamp_update_work_light", "lelamp_exit_work_light", "lelamp_sleep", "lelamp_get_robot_state", "lelamp_queue_expression", "lelamp_create_timer", "lelamp_pause_timer", "lelamp_resume_timer", "lelamp_cancel_timer", "lelamp_add_timer_time", "lelamp_get_timer_remaining", "lelamp_list_timers", "lelamp_create_alarm", "lelamp_cancel_alarm", "lelamp_get_alarm", "lelamp_list_alarms", "web-search__search", "zhipu-web-search-sse__webSearchStd"]}}
 JSON
 ```
 
@@ -603,6 +603,33 @@ curl -sS -X POST http://127.0.0.1:18789/v1/chat/completions \
 - **宽泛问题输出会变长。** 问“最近有什么科技新闻”时，`AGENTS.md` 要求的一两句话约束会被突破，模型会列清单，语音播报明显变长。需要时在人格文件里进一步收紧。
 - **延迟波动大。** 单次搜索约 0.7 秒，但整轮对话 8–20 秒不等，思考灯效期间会静默较久。
 
+## 13. 通用多 Timer
+
+启动 `lelamp.app` 后可直接说“定时25分钟”“还有多久”“暂停第一个计时器”“继续计时”“再加10分钟”“取消计时”或“现在有哪些计时器”。多个目标不明确时，Agent 会先列出计时器再询问。
+
+Timer 仅保存在内存，app 重启后清空。多个 Timer 可以并存；到时后进入统一播报队列，不改变当前姿态或照明模式，也不会打断正在进行的回答。多个同时积压的纯文本提醒会合并播报，带动作或 Agent 任务的提醒仍逐条执行。
+
+Python 功能入口位于 `lelamp/timer/`，Agent 使用 `lelamp_create_timer`、`lelamp_pause_timer`、`lelamp_resume_timer`、`lelamp_cancel_timer`、`lelamp_add_timer_time`、`lelamp_get_timer_remaining` 和 `lelamp_list_timers`。所有时长参数及返回值均以秒为单位。
+
+## 14. Alarm 闹钟
+
+Alarm 用于具体钟表时间，与“25 分钟后”这类 Timer 分开。启动 app 后可以直接说：
+
+```text
+明天早上八点提醒我起床
+每天晚上十点提醒我休息
+工作日下午两点提醒我开会
+每周五下午四点半提醒我
+现在有哪些闹钟
+取消第一个闹钟
+```
+
+支持一次、每天、工作日以及每周指定星期重复。闹钟保存于 `runtime_state/alarms.json`，app 或 Pi5 重启后会恢复；关机期间错过的一次性闹钟不会补播，重复闹钟会排到下一次。
+
+所在城市和时区保存在 `runtime_state/location.json`。app 每次启动都会尝试重新定位，成功后覆盖这个配置；如果本次网络定位失败，就继续使用上一次成功保存的城市和时区。
+
+Agent 工具为 `lelamp_create_alarm`、`lelamp_cancel_alarm`、`lelamp_get_alarm` 和 `lelamp_list_alarms`。闹钟到期后进入与 Timer、对话回答共用的统一播报队列；既可播报提醒，也可执行明确指定的高层台灯动作，或重新调用 Agent 完成需要届时查询和判断的任务。
+
 ## 来源和验证范围
 
 - [官方 Setup](https://github.com/humancomputerlab/LeLamp/blob/master/docs/4.%20LeLamp%20Setup.md)
@@ -610,3 +637,35 @@ curl -sS -X POST http://127.0.0.1:18789/v1/chat/completions \
 - [Runtime 仓库](https://github.com/humancomputerlab/lelamp_runtime)
 - 模块归属见 `ARCHITECTURE.md`；命令以 app、motion 和保留的 CLI/test 入口为准。
 - 本次整理未执行舵机初始化、校准、录制或回放，也未改写已有校准文件。
+# 提示音候选试听
+
+试听前先停止语音应用，避免扬声器音效被 KWS/VAD 当成麦克风输入：
+
+```bash
+pkill -TERM -f '^/home/lamppi/lelamp_runtime/.venv/bin/python3 -m lelamp.app$'
+pkill -TERM -f '^uv run --no-sync -m lelamp.app$'
+```
+
+分类试听三组候选：
+
+```bash
+cd ~/lelamp_runtime
+uv run --no-sync -m lelamp.test.test_sound_candidates wake
+uv run --no-sync -m lelamp.test.test_sound_candidates timer
+uv run --no-sync -m lelamp.test.test_sound_candidates alarm
+```
+
+也可以一次播放全部九个候选：
+
+```bash
+uv run --no-sync -m lelamp.test.test_sound_candidates all
+```
+
+试听结束后恢复应用：
+
+```bash
+cd ~/lelamp_runtime
+nohup uv run --no-sync -m lelamp.app >/tmp/lelamp-app.log 2>&1 &
+```
+
+候选选择格式示例：`WAKE-B、TIMER-A、ALARM-C`。试听命令只临时播放，不会修改 `sound.conf` 或启用正式提示音。

@@ -10,6 +10,7 @@ from lelamp.voice.audio import read_capture_block, scale_pcm_s16le
 from lelamp.voice.vad import capture_utterance
 from lelamp.voice.config import has_meaningful_text
 from lelamp.motion.controller import MotionController
+from lelamp.voice.announcement import AnnouncementPriority
 
 
 class FakeMotion:
@@ -261,9 +262,17 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
             "lelamp.app.speak", side_effect=speaking
         ):
             result = await app.handle_text("这是怎么回事", "session")
-            metrics = await app.speak_response(result.text)
-        self.assertEqual(metrics, (0.1, 0.2, 0.3))
+            handle = await app.submit_announcement(
+                source="local_reply", text=result.text,
+                priority=AnnouncementPriority.LOCAL_REPLY,
+                expression=app.take_pending_expression(),
+            )
+            await app.drain_announcements()
+            spoken = await handle.wait()
+        self.assertEqual(spoken.metrics, (0.1, 0.2, 0.3))
         self.assertEqual(motion.events, ["play:curious", "play:stopped", "standby"])
+        await app.announcements.close()
+
 
     async def test_agent_play_motion_misuse_is_deferred_to_reply(self):
         motion = FakeMotion()
@@ -283,8 +292,14 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
             "lelamp.app.speak", side_effect=speaking
         ):
             result = await app.handle_text("我有一个特别好的消息", "session")
-            await app.speak_response(result.text)
+            await app.submit_announcement(
+                source="local_reply", text=result.text,
+                priority=AnnouncementPriority.LOCAL_REPLY,
+                expression=app.take_pending_expression(),
+            )
+            await app.drain_announcements()
         self.assertEqual(motion.events, ["play:happy_wiggle", "play:stopped", "standby"])
+        await app.announcements.close()
 
     async def test_work_light_rejects_automatic_expression(self):
         app = LampApp(motion=FakeMotion(), lighting=FakeLighting())
@@ -306,11 +321,18 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
         with patch("lelamp.app.ask_agent", side_effect=agent_reply), patch(
             "lelamp.app.speak", return_value=(0.1, 0.2, 0.3)
         ) as mocked_speak:
-            result = await app.process_remote_text("我先走了", "remote-user")
+            remote = asyncio.create_task(
+                app.process_remote_text("我先走了", "remote-user")
+            )
+            while not app.announcement_pending():
+                await asyncio.sleep(0)
+            await app.drain_announcements()
+            result = await remote
         self.assertEqual(result, RemoteActionResult("回头见。", "shutdown_requested", True))
         mocked_speak.assert_called_once_with("回头见。")
         self.assertEqual(motion.events, ["standby", "sleep"])
         self.assertTrue(app.mechanically_asleep)
+        await app.announcements.close()
 
     async def test_tool_state_and_deferred_sleep(self):
         app = LampApp(motion=FakeMotion(), lighting=FakeLighting())
@@ -360,10 +382,15 @@ class VoiceTests(unittest.TestCase):
         quiet = np.full(1600, 0.052, dtype=np.float32)
         speech = quiet + np.tile(np.array([-0.04, 0.04], dtype=np.float32), 800)
         blocks = iter([speech] + [quiet] * 8 + [speech] + [quiet] * 12)
+        speech_starts = []
         with patch.dict(os.environ, {"VAD_MODE": "rms", "VAD_SILENCE_SECONDS": "1.2",
                                      "VAD_MAX_SECONDS": "15"}):
-            result = capture_utterance(lambda: next(blocks), 15, "test")
+            result = capture_utterance(
+                lambda: next(blocks), 15, "test",
+                on_speech_start=lambda: speech_starts.append(True),
+            )
         self.assertEqual(len(result), 22 * 1600)
+        self.assertEqual(speech_starts, [True])
 
     def test_dc_noise_not_speech(self):
         quiet = np.full(1600, 0.052, dtype=np.float32)

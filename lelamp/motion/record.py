@@ -2,6 +2,8 @@ import argparse
 import time
 import csv
 import os
+import shutil
+from datetime import datetime
 from lelamp.leader import LeLampLeader, LeLampLeaderConfig
 from lerobot.utils.robot_utils import busy_wait
   
@@ -30,6 +32,15 @@ def main():
 
     # Set up CSV file for recording
     csv_filename = os.path.join(recordings_dir, f"{args.name or 'recording'}.csv")
+    if os.path.exists(csv_filename):
+        backup_dir = os.path.join(recordings_dir, "backups")
+        os.makedirs(backup_dir, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        backup = os.path.join(
+            backup_dir, f"{args.name or 'recording'}-{stamp}.csv"
+        )
+        shutil.copy2(csv_filename, backup)
+        print(f"Existing recording backed up to: {backup}")
     with open(csv_filename, 'w', newline='') as csvfile:
         csv_writer = None
         

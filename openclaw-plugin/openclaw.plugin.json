@@ -22,6 +22,17 @@
       "lelamp_update_work_light",
       "lelamp_exit_work_light",
       "lelamp_sleep",
+      "lelamp_create_timer",
+      "lelamp_pause_timer",
+      "lelamp_resume_timer",
+      "lelamp_cancel_timer",
+      "lelamp_add_timer_time",
+      "lelamp_get_timer_remaining",
+      "lelamp_list_timers",
+      "lelamp_create_alarm",
+      "lelamp_cancel_alarm",
+      "lelamp_get_alarm",
+      "lelamp_list_alarms",
       "lelamp_get_robot_state"
     ]
   }

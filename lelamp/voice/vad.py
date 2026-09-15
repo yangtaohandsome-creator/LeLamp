@@ -7,6 +7,10 @@ from collections import deque
 import numpy as np
 from .config import SAMPLE_RATE, BLOCK_SAMPLES, env_float
 
+
+class CaptureInterrupted(Exception):
+    """Raised when an app notification needs the microphone before speech starts."""
+
 def make_vad() -> sherpa_onnx.VoiceActivityDetector | None:
     if os.getenv("VAD_MODE", "silero").lower() != "silero":
         return None
@@ -39,6 +43,8 @@ def capture_utterance(
     prompt: str,
     trace_block=None,
     initial_noise_levels=None,
+    interrupt_before_speech=None,
+    on_speech_start=None,
 ) -> np.ndarray | None:
     """Read speech after KWS, ending after sustained silence."""
     silence_limit = int(env_float("VAD_SILENCE_SECONDS", 1.2) * SAMPLE_RATE)
@@ -72,6 +78,8 @@ def capture_utterance(
 
     print(prompt, flush=True)
     while sum(len(x) for x in chunks) < max_samples:
+        if not heard_speech and interrupt_before_speech is not None and interrupt_before_speech():
+            raise CaptureInterrupted
         block = read_block()
         centered = block - block.mean()
         rms = float(np.sqrt(np.mean(np.square(centered))))
@@ -90,6 +98,8 @@ def capture_utterance(
             if not heard_speech:
                 chunks.extend(pre_roll)
                 pre_roll.clear()
+                if on_speech_start is not None:
+                    on_speech_start()
             heard_speech = True
             silent_samples = 0
         elif heard_speech:

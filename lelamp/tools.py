@@ -28,12 +28,100 @@ class ToolExecutor:
     }
     EXPRESSIONS = MOTIONS
     LIGHT_MODES = {"on", "off", "office", "warm"}
+    SCHEDULED_TOOLS = {
+        "play_motion", "set_light", "enter_work_light",
+        "update_work_light", "exit_work_light", "sleep", "stop_tracking",
+    }
 
     def __init__(self, app: "LampApp") -> None:
         self.app = app
 
+    def _callback_info(self, args: dict[str, Any]) -> dict[str, Any]:
+        callback_info: dict[str, Any] = {"source": "agent"}
+        on_complete = args.get("on_complete")
+        agent_task = str(args.get("agent_task", "")).strip()
+        if on_complete is not None and agent_task:
+            raise ValueError("on_complete 和 agent_task 不能同时设置")
+        if on_complete is not None:
+            if not isinstance(on_complete, dict):
+                raise ValueError("on_complete 必须是对象")
+            tool_name = str(on_complete.get("tool", ""))
+            tool_args = on_complete.get("arguments", {})
+            if tool_name not in self.SCHEDULED_TOOLS:
+                raise ValueError(f"不支持定时执行的工具: {tool_name}")
+            if not isinstance(tool_args, dict):
+                raise ValueError("on_complete.arguments 必须是对象")
+            callback_info["action"] = {"tool": tool_name, "arguments": dict(tool_args)}
+        elif agent_task:
+            callback_info["agent_task"] = agent_task
+        return callback_info
+
     async def execute(self, name: str, arguments: dict[str, Any] | None = None) -> ToolOutcome:
         args = arguments or {}
+        if name == "create_timer":
+            duration = args.get("duration_seconds", 0)
+            message = str(args.get("message", ""))
+            timer = await self.app.timers.create_timer(
+                duration, message, self._callback_info(args)
+            )
+            return ToolOutcome("completed", "计时器已创建", timer.as_dict())
+
+        if name == "create_alarm":
+            alarm = await self.app.alarms.create_alarm(
+                str(args.get("trigger_at", "")),
+                str(args.get("message", "")),
+                str(args.get("recurrence", "once")),
+                self._callback_info(args),
+                args.get("day_of_week"),
+            )
+            return ToolOutcome("completed", "闹钟已创建", alarm.as_dict())
+
+        if name == "cancel_alarm":
+            alarm = await self.app.alarms.cancel_alarm(str(args.get("alarm_id", "")))
+            return ToolOutcome("completed", "闹钟已取消", alarm.as_dict())
+
+        if name == "get_alarm":
+            alarm = await self.app.alarms.get_alarm(str(args.get("alarm_id", "")))
+            return ToolOutcome("completed", "闹钟状态读取成功", alarm.as_dict())
+
+        if name == "list_alarms":
+            alarms = await self.app.alarms.list_alarms(bool(args.get("include_finished", False)))
+            return ToolOutcome(
+                "completed", "闹钟列表读取成功",
+                {"alarms": [alarm.as_dict() for alarm in alarms]},
+            )
+
+        if name == "pause_timer":
+            timer = await self.app.timers.pause_timer(str(args.get("timer_id", "")))
+            return ToolOutcome("completed", "计时器已暂停", timer.as_dict())
+
+        if name == "resume_timer":
+            timer = await self.app.timers.resume_timer(str(args.get("timer_id", "")))
+            return ToolOutcome("completed", "计时器已继续", timer.as_dict())
+
+        if name == "cancel_timer":
+            timer = await self.app.timers.cancel_timer(str(args.get("timer_id", "")))
+            return ToolOutcome("completed", "计时器已取消", timer.as_dict())
+
+        if name == "add_timer_time":
+            timer = await self.app.timers.add_time(
+                str(args.get("timer_id", "")), args.get("seconds", 0)
+            )
+            return ToolOutcome("completed", "计时器已加时", timer.as_dict())
+
+        if name == "get_timer_remaining":
+            timer = await self.app.timers.get_remaining(str(args.get("timer_id", "")))
+            return ToolOutcome("completed", "计时器状态读取成功", timer.as_dict())
+
+        if name == "list_timers":
+            timers = await self.app.timers.list_timers(
+                bool(args.get("include_finished", False))
+            )
+            return ToolOutcome(
+                "completed", "计时器列表读取成功",
+                {"timers": [timer.as_dict() for timer in timers]},
+            )
+
         if name == "play_motion":
             motion = str(args.get("name", ""))
             if motion not in self.MOTIONS:

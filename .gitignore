@@ -17,3 +17,4 @@ node_modules/
 kws_models/
 vad_models/
 voice_debug/
+runtime_state/

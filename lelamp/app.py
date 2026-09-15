@@ -13,13 +13,18 @@ from .voice.audio import (
     select_kws_audio, measure_noise,
 )
 from .voice.kws import make_spotter
-from .voice.vad import capture_utterance
+from .voice.vad import CaptureInterrupted, capture_utterance
 from .voice.asr import transcribe
 from .voice.tts import speak
+from .voice.announcement import Announcement, AnnouncementPriority, AnnouncementQueue
 from .agent.openclaw import OpenClawError, ask_agent
 from .control import ControlServer
 from .remote_text import RemoteTextServer
 from .tools import ToolExecutor
+from .timer import TimerManager, TimerSnapshot
+from .alarm import AlarmManager, AlarmSnapshot
+from .location import LocationError, resolve_location
+from .audio import SoundPlayer
 
 
 @dataclass(frozen=True)
@@ -55,6 +60,26 @@ async def run_voice(app) -> None:
     pending_noise_levels: list[float] = []
     conversation_deadline: float | None = None
 
+    async def play_pending_announcements() -> None:
+        """Give the sole TTS consumer a safe window with capture stopped."""
+        nonlocal capture, stream, pending_noise_levels, conversation_deadline
+        if not app.announcement_pending():
+            return
+        started = time.monotonic()
+        if capture is not None:
+            stop_capture(capture)
+            capture = None
+        await app.drain_announcements()
+        if conversation_deadline is not None:
+            conversation_deadline += time.monotonic() - started
+        capture = start_capture()
+        pending_noise_levels = await asyncio.to_thread(
+            measure_noise, lambda: read_capture_block(capture),
+            env_float("VAD_CAPTURE_WARMUP_SECONDS", 0.5),
+        )
+        stream = spotter.create_stream()
+        app.light_state("listening" if conversation_active else "wake_required")
+
     async def enter_sleep_waiting(message: str, force_sleep: bool = False) -> None:
         """Park the mechanics, then keep this process listening for the next wake."""
         nonlocal capture, conversation_active, conversation_deadline
@@ -87,6 +112,9 @@ async def run_voice(app) -> None:
         while True:
             if not conversation_active:
                 stereo = await asyncio.to_thread(read_capture_stereo_block, capture)
+                if app.announcement_pending():
+                    await play_pending_announcements()
+                    continue
                 samples = select_kws_audio(stereo)
                 centered = stereo.mean(axis=1)
                 centered = centered - centered.mean()
@@ -103,6 +131,14 @@ async def run_voice(app) -> None:
                 conversation_id = uuid.uuid4().hex
                 conversation_turns = 0
                 app.light_state("wake_ack")
+                if app.sound_configured("wake"):
+                    await app.submit_announcement(
+                        source="wake",
+                        text="",
+                        priority=AnnouncementPriority.LOCAL_REPLY,
+                        sound_before="wake",
+                    )
+                    await play_pending_announcements()
                 try:
                     await app.enter_standby()
                 except Exception as exc:
@@ -125,16 +161,23 @@ async def run_voice(app) -> None:
                 await enter_sleep_waiting("会话已结束，请说“小灯”重新唤醒")
                 continue
             prompt = "Listening..." if is_first_turn else "连续对话中，请直接说话..."
-            utterance = await asyncio.to_thread(
-                capture_utterance, lambda: read_capture_block(capture),
-                timeout,
-                prompt,
-                initial_noise_levels=pending_noise_levels,
-            )
+            try:
+                utterance = await asyncio.to_thread(
+                    capture_utterance, lambda: read_capture_block(capture),
+                    timeout,
+                    prompt,
+                    initial_noise_levels=pending_noise_levels,
+                    interrupt_before_speech=app.announcement_interrupted,
+                    on_speech_start=app.local_speech_started,
+                )
+            except CaptureInterrupted:
+                await play_pending_announcements()
+                continue
             pending_noise_levels = []
             listen_seconds = time.perf_counter() - listen_started
             print(f"LISTEN END | 延迟: {listen_seconds:.2f} 秒", flush=True)
             if utterance is None:
+                app.local_speech_finished()
                 message = ("未检测到问题，继续等待“小灯”唤醒" if is_first_turn
                            else "会话已结束，请说“小灯”重新唤醒")
                 await enter_sleep_waiting(message)
@@ -144,6 +187,7 @@ async def run_voice(app) -> None:
             capture = None
             valid_text_received = False
             shutdown_requested = False
+            reply_handle = None
             try:
                 app.light_state("thinking")
                 asr_started = time.perf_counter()
@@ -160,7 +204,18 @@ async def run_voice(app) -> None:
                         answer = result.text
                         shutdown_requested = result.status == "shutdown_requested"
                         llm_seconds = time.perf_counter() - llm_started
-                        tts_first_seconds, tts_stream_seconds, playback_seconds = await app.speak_response(answer)
+                        reply_handle = await app.submit_announcement(
+                            source="local_reply",
+                            text=answer,
+                            priority=AnnouncementPriority.LOCAL_REPLY,
+                            callback_info={"sleep_after": shutdown_requested},
+                            expression=app.take_pending_expression(),
+                        )
+                    await play_pending_announcements()
+                    spoken = await reply_handle.wait()
+                    if not spoken.success:
+                        raise RuntimeError(f"播报失败: {spoken.error}")
+                    tts_first_seconds, tts_stream_seconds, playback_seconds = spoken.metrics
                     print(f"LLM: {answer}", flush=True)
                     print(f"LLM 延迟: {llm_seconds:.2f} 秒", flush=True)
                     conversation_turns += 1
@@ -175,16 +230,21 @@ async def run_voice(app) -> None:
             except Exception as exc:
                 app.light_state("error")
                 print(f"Voice turn failed: {exc}", file=sys.stderr, flush=True)
+            finally:
+                app.local_speech_finished()
             if shutdown_requested:
                 await enter_sleep_waiting("已进入睡眠，请说“小灯”重新唤醒", force_sleep=True)
                 continue
 
-            capture = start_capture()
-            pending_noise_levels = await asyncio.to_thread(
-                measure_noise, lambda: read_capture_block(capture),
-                env_float("VAD_CAPTURE_WARMUP_SECONDS", 0.5),
-            )
-            stream = spotter.create_stream()
+            if app.announcement_pending():
+                await play_pending_announcements()
+            elif capture is None:
+                capture = start_capture()
+                pending_noise_levels = await asyncio.to_thread(
+                    measure_noise, lambda: read_capture_block(capture),
+                    env_float("VAD_CAPTURE_WARMUP_SECONDS", 0.5),
+                )
+                stream = spotter.create_stream()
             if valid_text_received:
                 conversation_deadline = time.monotonic() + env_float(
                     "CONVERSATION_IDLE_SECONDS", 15.0
@@ -204,7 +264,7 @@ async def run_voice(app) -> None:
 
 class LampApp:
     """Application coordination; all app motion sources enter through this object."""
-    def __init__(self, motion=None, lighting=None):
+    def __init__(self, motion=None, lighting=None, sound_player=None):
         from .motion.controller import MotionController
         from .lighting.controller import LightingController
         self.motion = motion or MotionController(
@@ -212,6 +272,7 @@ class LampApp:
             lamp_id=os.getenv("MOTION_LAMP_ID", "lamppi"),
         )
         self.lighting = lighting or LightingController()
+        self.sound_player = sound_player or SoundPlayer()
         self.current_mode = "normal"
         self.current_motion_task = None
         self.tracking = False
@@ -227,7 +288,188 @@ class LampApp:
         self._shutdown_reason: str | None = None
         self._pending_expression: str | None = None
         self._agent_turn_text: str | None = None
+        import threading
+        self._local_speech_active = threading.Event()
+        self.announcements = AnnouncementQueue(self._process_announcement_batch)
+        self.timers = TimerManager(self._on_timer_complete)
+        self.alarms = AlarmManager(self._on_alarm_complete)
         self.tools = ToolExecutor(self)
+
+    async def start(self) -> None:
+        await self.announcements.start()
+        await self.alarms.start()
+
+    async def _on_timer_complete(self, timer: TimerSnapshot) -> None:
+        """Turn a hardware-neutral Timer completion into one speech event."""
+        has_work = bool(
+            timer.callback_info.get("action")
+            or str(timer.callback_info.get("agent_task", "")).strip()
+        )
+        await self.submit_announcement(
+            announcement_id=timer.timer_id,
+            source="timer",
+            text=timer.message.strip() or "计时结束了。",
+            priority=AnnouncementPriority.NOTIFICATION,
+            mergeable=not has_work,
+            callback_info=timer.callback_info,
+            sound_before="timer",
+        )
+        print(f"TIMER COMPLETED: {timer.timer_id}", flush=True)
+
+    async def _on_alarm_complete(self, alarm: AlarmSnapshot) -> None:
+        """Turn an Alarm trigger into the same app-level speech event."""
+        has_work = bool(
+            alarm.callback_info.get("action")
+            or str(alarm.callback_info.get("agent_task", "")).strip()
+        )
+        await self.submit_announcement(
+            announcement_id=alarm.alarm_id,
+            source="alarm",
+            text=alarm.message.strip() or "闹钟时间到了。",
+            priority=AnnouncementPriority.NOTIFICATION,
+            mergeable=not has_work,
+            callback_info=alarm.callback_info,
+            sound_before="alarm",
+        )
+        print(f"ALARM TRIGGERED: {alarm.alarm_id}", flush=True)
+
+    async def submit_announcement(
+        self,
+        *,
+        source: str,
+        text: str,
+        priority: int,
+        announcement_id: str | None = None,
+        mergeable: bool = False,
+        callback_info=None,
+        expression: str | None = None,
+        sound_before: str | None = None,
+    ):
+        return await self.announcements.submit(
+            announcement_id=announcement_id or f"{source}-{uuid.uuid4().hex}",
+            source=source,
+            text=text,
+            priority=priority,
+            mergeable=mergeable,
+            callback_info=callback_info,
+            expression=expression,
+            sound_before=sound_before,
+        )
+
+    def sound_configured(self, cue: str) -> bool:
+        return self.sound_player.has_cue(cue)
+
+    def announcement_pending(self) -> bool:
+        return self.announcements.has_pending()
+
+    def announcement_interrupted(self) -> bool:
+        return (
+            not self._local_speech_active.is_set()
+            and self.announcements.interruption_requested()
+        )
+
+    async def drain_announcements(self) -> None:
+        await self.announcements.drain_and_pause()
+
+    def local_speech_started(self) -> None:
+        self._local_speech_active.set()
+
+    def local_speech_finished(self) -> None:
+        self._local_speech_active.clear()
+
+    async def _process_announcement_batch(
+        self, batch: list[Announcement]
+    ) -> tuple[str, tuple[float, float, float]]:
+        """Resolve and speak one queue batch under the app interaction lock."""
+        async with self._interaction_lock:
+            if len(batch) > 1:
+                message = self._merge_announcement_texts([item.text for item in batch])
+                ids = ",".join(item.announcement_id for item in batch)
+                print(f"ANNOUNCEMENT MERGED: {ids} | {message}", flush=True)
+                cue = "alarm" if any(item.sound_before == "alarm" for item in batch) else next(
+                    (item.sound_before for item in batch if item.sound_before), None
+                )
+                await self._play_sound_now(cue)
+                metrics = await self._speak_now(message, None) if message else (0.0, 0.0, 0.0)
+                print(f"ANNOUNCEMENT END: {ids}", flush=True)
+                return message, metrics
+
+            item = batch[0]
+            message = item.text
+            expression = item.expression
+            sleep_after = bool(item.callback_info.get("sleep_after"))
+            action = item.callback_info.get("action")
+            agent_task = str(item.callback_info.get("agent_task", "")).strip()
+            print(
+                f"ANNOUNCEMENT START: {item.announcement_id} | {item.source} | {message}",
+                flush=True,
+            )
+            await self._play_sound_now(item.sound_before)
+            if agent_task:
+                try:
+                    print(f"SCHEDULE AGENT START: {item.announcement_id}", flush=True)
+                    result = await self.handle_text(
+                        agent_task,
+                        f"scheduled-{item.announcement_id}-{uuid.uuid4().hex}",
+                    )
+                    message = result.text or message
+                    expression = self.take_pending_expression()
+                    sleep_after = result.status == "shutdown_requested"
+                    print(
+                        f"SCHEDULE AGENT END: {item.announcement_id} | {result.status}",
+                        flush=True,
+                    )
+                except Exception as exc:
+                    message = "定时任务执行失败了。"
+                    self.clear_pending_expression()
+                    print(
+                        f"SCHEDULE AGENT FAILED: {item.announcement_id} | {exc}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+            elif isinstance(action, dict):
+                tool_name = str(action.get("tool", ""))
+                arguments = action.get("arguments", {})
+                try:
+                    outcome = await self.tools.execute(tool_name, arguments)
+                    if outcome.status == "shutdown_requested":
+                        self.consume_shutdown_request()
+                        sleep_after = True
+                    print(
+                        f"SCHEDULE ACTION END: {item.announcement_id} | "
+                        f"{tool_name} | {outcome.status}",
+                        flush=True,
+                    )
+                except Exception as exc:
+                    message = "定时任务执行失败了。"
+                    print(
+                        f"SCHEDULE ACTION FAILED: {item.announcement_id} | "
+                        f"{tool_name} | {exc}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+            metrics = await self._speak_now(message, expression) if message else (0.0, 0.0, 0.0)
+            if sleep_after:
+                await self.sleep()
+            print(f"ANNOUNCEMENT END: {item.announcement_id}", flush=True)
+            return message, metrics
+
+    async def _play_sound_now(self, cue: str | None) -> float:
+        if not cue:
+            return 0.0
+        try:
+            seconds = await asyncio.to_thread(self.sound_player.play, cue)
+        except Exception as exc:
+            print(f"提示音 {cue} 播放失败，继续文字播报: {exc}", file=sys.stderr, flush=True)
+            return 0.0
+        if seconds > 0:
+            print(f"SOUND: {cue} | {seconds:.2f} 秒", flush=True)
+        return seconds
+
+    @staticmethod
+    def _merge_announcement_texts(texts: list[str]) -> str:
+        parts = [text.strip().rstrip("。；;，,") for text in texts if text.strip()]
+        return "；".join(parts) + ("。" if parts else "")
 
     def light_state(self, name: str) -> None:
         """Set a semantic status effect without RGB values in app logic."""
@@ -474,10 +716,15 @@ class LampApp:
     def clear_pending_expression(self) -> None:
         self._pending_expression = None
 
-    async def speak_response(self, text: str) -> tuple[float, float, float]:
-        """Start a queued expression exactly when TTS playback starts."""
+    def take_pending_expression(self) -> str | None:
         expression = self._pending_expression
         self._pending_expression = None
+        return expression
+
+    async def _speak_now(
+        self, text: str, expression: str | None
+    ) -> tuple[float, float, float]:
+        """Sole app-level TTS path, called only by AnnouncementQueue."""
         self.speaking = True
         self.light_state("speaking")
         motion_task = None
@@ -566,19 +813,32 @@ class LampApp:
                 await self.enter_standby()
             self.light_state("thinking")
             result = await self.handle_text(text, session_id)
-            spoken = False
+            handle = None
             if result.text:
-                await self.speak_response(result.text)
-                spoken = True
-            if result.status == "shutdown_requested":
-                await self.sleep()
-                self.light_state("wake_required")
-            else:
-                self.light_state("turn_done")
-            return RemoteActionResult(result.text, result.status, spoken)
+                handle = await self.submit_announcement(
+                    source="remote_reply",
+                    text=result.text,
+                    priority=AnnouncementPriority.REMOTE_REPLY,
+                    callback_info={
+                        "sleep_after": result.status == "shutdown_requested"
+                    },
+                    expression=self.take_pending_expression(),
+                )
+        spoken = False
+        if handle is not None:
+            announcement = await handle.wait()
+            spoken = announcement.success
+        if result.status == "shutdown_requested":
+            self.light_state("wake_required")
+        else:
+            self.light_state("turn_done")
+        return RemoteActionResult(result.text, result.status, spoken)
 
     async def close(self):
         try:
+            await self.timers.close()
+            await self.alarms.close()
+            await self.announcements.close()
             if self.motion.robot is not None:
                 await self.sleep()
         finally:
@@ -595,9 +855,21 @@ def match_local_command(text):
     }.get(normalized)
 
 
+
+
 async def run():
     load_voice_config()
+    try:
+        location, refreshed = await asyncio.to_thread(resolve_location)
+        print(
+            ("公网 IP 定位完成" if refreshed else "公网 IP 定位失败，复用历史配置")
+            + f": {location.city} | 时区: {location.timezone}",
+            flush=True,
+        )
+    except LocationError as exc:
+        print(f"公网 IP 定位不可用: {exc}", file=sys.stderr, flush=True)
     app = LampApp()
+    await app.start()
     control = ControlServer(app.tools)
     remote = RemoteTextServer(app)
     await control.start()

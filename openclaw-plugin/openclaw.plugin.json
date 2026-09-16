@@ -9,7 +9,11 @@
     "required": ["baseUrl", "token"],
     "properties": {
       "baseUrl": {"type": "string"},
-      "token": {"type": "string"}
+      "token": {"type": "string"},
+      "searchPrimaryUrl": {"type": "string"},
+      "searchPrimaryToken": {"type": "string"},
+      "searchFallbackUrl": {"type": "string"},
+      "searchTimeoutMs": {"type": "integer", "minimum": 1000, "maximum": 30000, "default": 6000}
     }
   },
   "activation": {"onStartup": true},
@@ -17,6 +21,9 @@
     "tools": [
       "lelamp_play_motion",
       "lelamp_queue_expression",
+      "lelamp_turn_base",
+      "lelamp_reset_base_heading",
+      "lelamp_set_base_heading",
       "lelamp_set_light",
       "lelamp_enter_work_light",
       "lelamp_update_work_light",
@@ -33,7 +40,8 @@
       "lelamp_cancel_alarm",
       "lelamp_get_alarm",
       "lelamp_list_alarms",
-      "lelamp_get_robot_state"
+      "lelamp_get_robot_state",
+      "lelamp_web_search"
     ]
   }
 }

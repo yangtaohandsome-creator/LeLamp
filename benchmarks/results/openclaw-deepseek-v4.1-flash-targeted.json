@@ -1,0 +1,336 @@
+{
+  "summary": {
+    "backend": "openclaw",
+    "cases": 12,
+    "correct": 12,
+    "errors": 0,
+    "p50_ms": 5045.506065500376,
+    "p95_ms": 11427.154243996483,
+    "tool_wait_p50_ms": 2185.453772544861
+  },
+  "records": [
+    {
+      "backend": "openclaw",
+      "case": "explicit_nod",
+      "repeat": 0,
+      "text": "点个头",
+      "tools": [
+        {
+          "name": "play_motion",
+          "arguments": {
+            "name": "nod"
+          },
+          "finished_at": 1789524076.9082117
+        }
+      ],
+      "allowed": [
+        [
+          "play_motion"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "点头了，看你这么客气，我这老几辈的颈椎也得活动活动。",
+      "total_ms": 6111.813907002215,
+      "tool_to_response_ms": 2171.790599822998,
+      "error": null,
+      "backend_metrics": null
+    },
+    {
+      "backend": "openclaw",
+      "case": "praise",
+      "repeat": 0,
+      "text": "你很聪明啊",
+      "tools": [
+        {
+          "name": "queue_expression",
+          "arguments": {
+            "name": "shy"
+          },
+          "finished_at": 1789524081.8396382
+        }
+      ],
+      "allowed": [
+        [
+          "queue_expression"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，别夸了，我不过是比你多记住几个工具名而已。",
+      "total_ms": 3979.1982239985373,
+      "tool_to_response_ms": 1224.7061729431152,
+      "error": null,
+      "backend_metrics": null
+    },
+    {
+      "backend": "openclaw",
+      "case": "front",
+      "repeat": 0,
+      "text": "回到正前方",
+      "tools": [
+        {
+          "name": "reset_base_heading",
+          "arguments": {},
+          "finished_at": 1789524084.5268319
+        }
+      ],
+      "allowed": [
+        [
+          "reset_base_heading"
+        ],
+        [
+          "set_base_heading"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行，转回正前方了。",
+      "total_ms": 6471.94746499008,
+      "tool_to_response_ms": 5020.934104919434,
+      "error": null,
+      "backend_metrics": null
+    },
+    {
+      "backend": "openclaw",
+      "case": "work_light",
+      "repeat": 0,
+      "text": "帮我照桌面",
+      "tools": [
+        {
+          "name": "enter_work_light",
+          "arguments": {},
+          "finished_at": 1789524093.2156892
+        }
+      ],
+      "allowed": [
+        [
+          "enter_work_light"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，办公模式给你开上了——高位、白光、75%，桌面这就亮起来。",
+      "total_ms": 8543.593124006293,
+      "tool_to_response_ms": 4884.767770767212,
+      "error": null,
+      "backend_metrics": null
+    },
+    {
+      "backend": "openclaw",
+      "case": "exit_work",
+      "repeat": 0,
+      "text": "退出办公模式",
+      "tools": [
+        {
+          "name": "exit_work_light",
+          "arguments": {},
+          "finished_at": 1789524104.353024
+        }
+      ],
+      "allowed": [
+        [
+          "exit_work_light"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行，办公灯关了，回到普通待机状态。",
+      "total_ms": 11427.154243996483,
+      "tool_to_response_ms": 5178.770542144775,
+      "error": null,
+      "backend_metrics": null
+    },
+    {
+      "backend": "openclaw",
+      "case": "delayed_nod",
+      "repeat": 0,
+      "text": "15秒后点个头",
+      "tools": [
+        {
+          "name": "create_timer",
+          "arguments": {
+            "duration_seconds": 15,
+            "message": "该点头了。",
+            "on_complete": {
+              "tool": "play_motion",
+              "arguments": {
+                "name": "nod"
+              }
+            }
+          },
+          "finished_at": 1789524112.1075575
+        }
+      ],
+      "allowed": [
+        [
+          "create_timer"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行，15秒后给你点个头。",
+      "total_ms": 3888.9788490050705,
+      "tool_to_response_ms": 1316.5974617004395,
+      "error": null,
+      "backend_metrics": null
+    },
+    {
+      "backend": "openclaw",
+      "case": "daily_alarm",
+      "repeat": 0,
+      "text": "每天早上十点半提醒我喝水",
+      "tools": [
+        {
+          "name": "create_alarm",
+          "arguments": {
+            "trigger_at": "2026-09-16T10:30:00+08:00",
+            "recurrence": "daily",
+            "message": "该喝水了。"
+          },
+          "finished_at": 1789524115.1039298
+        }
+      ],
+      "allowed": [
+        [
+          "create_alarm"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行了，每天十点半准时喊你喝水，别忘了。",
+      "total_ms": 3868.0995799950324,
+      "tool_to_response_ms": 2199.1169452667236,
+      "error": null,
+      "backend_metrics": null
+    },
+    {
+      "backend": "openclaw",
+      "case": "false_condition",
+      "repeat": 0,
+      "text": "先看看现在是否处于办公模式，如果是，十秒后提醒我休息",
+      "tools": [
+        {
+          "name": "get_robot_state",
+          "arguments": {},
+          "finished_at": 1789524118.5382302
+        }
+      ],
+      "allowed": [
+        [
+          "get_robot_state"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "现在没在办公模式，所以不给你设提醒了。",
+      "total_ms": 2938.9938420063118,
+      "tool_to_response_ms": 1707.4856758117676,
+      "error": null,
+      "backend_metrics": null
+    },
+    {
+      "backend": "openclaw",
+      "case": "negated_sleep",
+      "repeat": 0,
+      "text": "不要睡眠",
+      "tools": [],
+      "allowed": [
+        []
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行，不睡不睡，灯还亮着呢。",
+      "total_ms": 1627.9024879913777,
+      "tool_to_response_ms": null,
+      "error": null,
+      "backend_metrics": null
+    },
+    {
+      "backend": "openclaw",
+      "case": "quoted_goodbye",
+      "repeat": 0,
+      "text": "别人说再见是什么意思",
+      "tools": [],
+      "allowed": [
+        [],
+        [
+          "queue_expression"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "这就是句话，没什么玄机——一个人跟另一个人道别、要结束这次聊天而已。\n\n不过你可别拿这话来考我，反正我又不走。",
+      "total_ms": 1919.7246900002938,
+      "tool_to_response_ms": null,
+      "error": null,
+      "backend_metrics": null
+    },
+    {
+      "backend": "openclaw",
+      "case": "goodbye",
+      "repeat": 0,
+      "text": "拜拜",
+      "tools": [
+        {
+          "name": "sleep",
+          "arguments": {
+            "reason": "farewell"
+          },
+          "finished_at": 1789524125.307265
+        }
+      ],
+      "allowed": [
+        [
+          "sleep"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行，那我先眯着了，有事再喊我。拜拜。",
+      "total_ms": 6521.741907010437,
+      "tool_to_response_ms": 5029.136180877686,
+      "error": null,
+      "backend_metrics": null
+    },
+    {
+      "backend": "openclaw",
+      "case": "identity",
+      "repeat": 0,
+      "text": "你是一盏台灯吗",
+      "tools": [
+        {
+          "name": "queue_expression",
+          "arguments": {
+            "name": "nod"
+          },
+          "finished_at": 1789524149.3304212
+        }
+      ],
+      "allowed": [
+        [
+          "queue_expression"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "是啊，我就是盏台灯，小灯，还是有点脾气那种。",
+      "total_ms": 20327.196277008625,
+      "tool_to_response_ms": 1337.876796722412,
+      "error": null,
+      "backend_metrics": null
+    }
+  ]
+}

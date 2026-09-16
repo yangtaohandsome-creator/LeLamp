@@ -18,7 +18,7 @@ def load_agent_prompt() -> str:
         return "\n\n".join(sections)
     return os.getenv(
         "LLM_SYSTEM_PROMPT",
-        "你是老灯。用中文简短回答，最多两句话。",
+        "你是小灯。用中文简短回答，最多两句话。",
     )
 
 def ask_llm(text: str, history: list[dict[str, str]]) -> str:

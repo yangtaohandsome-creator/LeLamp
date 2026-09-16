@@ -1,0 +1,2662 @@
+{
+  "summary": {
+    "backend": "pi",
+    "cases": 66,
+    "correct": 63,
+    "errors": 2,
+    "p50_ms": 4948.233740498836,
+    "p95_ms": 23235.447050014045,
+    "tool_wait_p50_ms": 1869.7175979614258
+  },
+  "records": [
+    {
+      "backend": "pi",
+      "case": "explicit_nod",
+      "repeat": 0,
+      "text": "点个头",
+      "tools": [
+        {
+          "name": "play_motion",
+          "arguments": {
+            "name": "nod"
+          },
+          "finished_at": 1789523276.7133276
+        }
+      ],
+      "allowed": [
+        [
+          "play_motion"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "点了，看见没。",
+      "total_ms": 14748.099003001698,
+      "tool_to_response_ms": 2305.17840385437,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 14730.844398000001,
+        "first_token_ms": 12403.25299,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_play_motion",
+            "arguments": {
+              "name": "nod"
+            },
+            "duration_ms": 5.340507999999318,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "asr_nod",
+      "repeat": 0,
+      "text": "有我点个头了",
+      "tools": [
+        {
+          "name": "play_motion",
+          "arguments": {
+            "name": "nod"
+          },
+          "finished_at": 1789523280.540123
+        }
+      ],
+      "allowed": [
+        [
+          "play_motion"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "点了，看到没。",
+      "total_ms": 2759.6071570005734,
+      "tool_to_response_ms": 1241.025686264038,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 2745.3727659999986,
+        "first_token_ms": 1494.7718369999984,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_play_motion",
+            "arguments": {
+              "name": "nod"
+            },
+            "duration_ms": 3.164067999998224,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "explicit_headshake",
+      "repeat": 0,
+      "text": "摇个头",
+      "tools": [
+        {
+          "name": "play_motion",
+          "arguments": {
+            "name": "headshake"
+          },
+          "finished_at": 1789523284.050121
+        }
+      ],
+      "allowed": [
+        [
+          "play_motion"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行，摇完了。有意见就直说。",
+      "total_ms": 3477.3650790011743,
+      "tool_to_response_ms": 1215.6367301940918,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 3457.535759999999,
+        "first_token_ms": 2234.3213289999985,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_play_motion",
+            "arguments": {
+              "name": "headshake"
+            },
+            "duration_ms": 2.7384099999981117,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "praise",
+      "repeat": 0,
+      "text": "你很聪明啊",
+      "tools": [
+        {
+          "name": "queue_expression",
+          "arguments": {
+            "name": "shy"
+          },
+          "finished_at": 1789523286.8718662
+        }
+      ],
+      "allowed": [
+        [
+          "queue_expression"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，少来这套，夸我我也不给你打折。有事说事。",
+      "total_ms": 2940.8608159865253,
+      "tool_to_response_ms": 1338.4382724761963,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 2921.012143,
+        "first_token_ms": 1570.1505509999988,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_queue_expression",
+            "arguments": {
+              "name": "shy"
+            },
+            "duration_ms": 2.656281999999919,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "insult",
+      "repeat": 0,
+      "text": "你蠢死了",
+      "tools": [
+        {
+          "name": "queue_expression",
+          "arguments": {
+            "name": "headshake"
+          },
+          "finished_at": 1789523289.4784188
+        }
+      ],
+      "allowed": [
+        [
+          "queue_expression"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行行行，我蠢，你最聪明。说吧，到底想干嘛？",
+      "total_ms": 2549.7505929961335,
+      "tool_to_response_ms": 1285.2630615234375,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 2530.282543000001,
+        "first_token_ms": 1234.3890470000006,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_queue_expression",
+            "arguments": {
+              "name": "headshake"
+            },
+            "duration_ms": 2.752742999997281,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "turn_left",
+      "repeat": 0,
+      "text": "向左转30度",
+      "tools": [
+        {
+          "name": "turn_base",
+          "arguments": {
+            "direction": "left",
+            "steps": 1
+          },
+          "finished_at": 1789523293.6562648
+        }
+      ],
+      "allowed": [
+        [
+          "turn_base"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行，左转了30度。",
+      "total_ms": 4150.178056006553,
+      "tool_to_response_ms": 1261.2998485565186,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 4131.151366999999,
+        "first_token_ms": 2859.908174,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_turn_base",
+            "arguments": {
+              "direction": "left",
+              "steps": 1
+            },
+            "duration_ms": 3.5756540000002133,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "absolute_right",
+      "repeat": 0,
+      "text": "面向最右边",
+      "tools": [
+        {
+          "name": "set_base_heading",
+          "arguments": {
+            "position": "right"
+          },
+          "finished_at": 1789523296.2461054
+        }
+      ],
+      "allowed": [
+        [
+          "set_base_heading"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，转过去了，现在正对最右边。",
+      "total_ms": 2929.7979100083467,
+      "tool_to_response_ms": 1604.4466495513916,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 2901.768799999998,
+        "first_token_ms": 1289.6294579999958,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_set_base_heading",
+            "arguments": {
+              "position": "right"
+            },
+            "duration_ms": 2.216939000005368,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "front",
+      "repeat": 0,
+      "text": "回到正前方",
+      "tools": [
+        {
+          "name": "reset_base_heading",
+          "arguments": {},
+          "finished_at": 1789523298.9703639
+        }
+      ],
+      "allowed": [
+        [
+          "reset_base_heading"
+        ],
+        [
+          "set_base_heading"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，回正了。",
+      "total_ms": 1998.779690999072,
+      "tool_to_response_ms": 881.962776184082,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 1981.0045129999999,
+        "first_token_ms": 1085.5028770000063,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_reset_base_heading",
+            "arguments": {},
+            "duration_ms": 2.298122999993211,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "heading_query",
+      "repeat": 0,
+      "text": "你现在朝向哪里",
+      "tools": [
+        {
+          "name": "get_robot_state",
+          "arguments": {},
+          "finished_at": 1789523301.197392
+        }
+      ],
+      "allowed": [
+        [
+          "get_robot_state"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "正前方，没歪。",
+      "total_ms": 2354.689251005766,
+      "tool_to_response_ms": 1012.8607749938965,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 2337.130271999995,
+        "first_token_ms": 1316.444571,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_get_robot_state",
+            "arguments": {},
+            "duration_ms": 2.3334190000023227,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "work_light",
+      "repeat": 0,
+      "text": "帮我照桌面",
+      "tools": [],
+      "allowed": [
+        [
+          "enter_work_light"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": false,
+      "answer": "",
+      "total_ms": 0.0,
+      "tool_to_response_ms": null,
+      "error": "Server error '502 Bad Gateway' for url 'http://127.0.0.1:18792/v1/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502",
+      "backend_metrics": null
+    },
+    {
+      "backend": "pi",
+      "case": "work_low_warm",
+      "repeat": 0,
+      "text": "进入低姿态暖黄光照明",
+      "tools": [
+        {
+          "name": "enter_work_light",
+          "arguments": {
+            "pose": "low",
+            "tone": "warm"
+          },
+          "finished_at": 1789523333.9522731
+        }
+      ],
+      "allowed": [
+        [
+          "enter_work_light"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，低姿态暖黄光办公照明给你开上了。",
+      "total_ms": 18077.118161003455,
+      "tool_to_response_ms": 16402.72307395935,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 18057.525934000005,
+        "first_token_ms": 1643.6898159999982,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_enter_work_light",
+            "arguments": {
+              "pose": "low",
+              "tone": "warm"
+            },
+            "duration_ms": 2.949814999999944,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "work_brighter",
+      "repeat": 0,
+      "text": "办公灯亮一点",
+      "tools": [
+        {
+          "name": "update_work_light",
+          "arguments": {
+            "brightness_step": 25
+          },
+          "finished_at": 1789523351.8334885
+        }
+      ],
+      "allowed": [
+        [
+          "update_work_light"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "亮了一档，现在更亮了。再嫌暗自己说。",
+      "total_ms": 2560.4494199942565,
+      "tool_to_response_ms": 1085.204839706421,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 2533.2851070000033,
+        "first_token_ms": 1446.440776000003,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_update_work_light",
+            "arguments": {
+              "brightness_step": 25
+            },
+            "duration_ms": 2.933019999996759,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "exit_work",
+      "repeat": 0,
+      "text": "退出办公模式",
+      "tools": [
+        {
+          "name": "exit_work_light",
+          "arguments": {},
+          "finished_at": 1789523353.921589
+        }
+      ],
+      "allowed": [
+        [
+          "exit_work_light"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，办公灯关了，回普通待机了。",
+      "total_ms": 2307.74209399533,
+      "tool_to_response_ms": 1308.1839084625244,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 2288.360746999999,
+        "first_token_ms": 971.8788510000013,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_exit_work_light",
+            "arguments": {},
+            "duration_ms": 2.235348000001977,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "delayed_nod",
+      "repeat": 0,
+      "text": "15秒后点个头",
+      "tools": [
+        {
+          "name": "create_timer",
+          "arguments": {
+            "duration_seconds": 15,
+            "message": "点头",
+            "on_complete": {
+              "tool": "play_motion",
+              "arguments": {
+                "name": "nod"
+              }
+            }
+          },
+          "finished_at": 1789523356.9618742
+        }
+      ],
+      "allowed": [
+        [
+          "create_timer"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，15秒后给你点个头。",
+      "total_ms": 3083.4980350045953,
+      "tool_to_response_ms": 1354.8624515533447,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 3064.4104040000093,
+        "first_token_ms": 1168.8602039999969,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_create_timer",
+            "arguments": {
+              "duration_seconds": 15,
+              "message": "点头",
+              "on_complete": {
+                "tool": "play_motion",
+                "arguments": {
+                  "name": "nod"
+                }
+              }
+            },
+            "duration_ms": 2.028221999993548,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "plain_timer",
+      "repeat": 0,
+      "text": "定时25分钟提醒我喝水",
+      "tools": [
+        {
+          "name": "create_timer",
+          "arguments": {
+            "duration_seconds": 1500,
+            "message": "喝水"
+          },
+          "finished_at": 1789523360.4627202
+        }
+      ],
+      "allowed": [
+        [
+          "create_timer"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，25分钟的喝水计时给你设好了，到点我叫你。",
+      "total_ms": 4798.754839997855,
+      "tool_to_response_ms": 2656.205177307129,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 4780.463212000002,
+        "first_token_ms": 2115.1997760000086,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_create_timer",
+            "arguments": {
+              "duration_seconds": 1500,
+              "message": "喝水"
+            },
+            "duration_ms": 3.508046999995713,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "daily_alarm",
+      "repeat": 0,
+      "text": "每天早上十点半提醒我喝水",
+      "tools": [
+        {
+          "name": "create_alarm",
+          "arguments": {
+            "trigger_at": "2026-09-16T10:30:00+08:00",
+            "recurrence": "daily",
+            "message": "喝水"
+          },
+          "finished_at": 1789523367.4850988
+        }
+      ],
+      "allowed": [
+        [
+          "create_alarm"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "成了，每天早上十点半提醒你喝水，从明天开始。",
+      "total_ms": 5999.992919998476,
+      "tool_to_response_ms": 1637.460470199585,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 5983.016285999998,
+        "first_token_ms": 4325.652954999998,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_create_alarm",
+            "arguments": {
+              "trigger_at": "2026-09-16T10:30:00+08:00",
+              "recurrence": "daily",
+              "message": "喝水"
+            },
+            "duration_ms": 3.310570000001462,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "list_alarm",
+      "repeat": 0,
+      "text": "现在有哪些闹钟",
+      "tools": [
+        {
+          "name": "list_alarms",
+          "arguments": {},
+          "finished_at": 1789523370.6802304
+        }
+      ],
+      "allowed": [
+        [
+          "list_alarms"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "就一个，明天上午10点半，提醒你开会。",
+      "total_ms": 3846.206941001583,
+      "tool_to_response_ms": 2291.1295890808105,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 3822.367782000001,
+        "first_token_ms": 1508.321781999999,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_list_alarms",
+            "arguments": {},
+            "duration_ms": 1.6674700000003213,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "false_condition",
+      "repeat": 0,
+      "text": "先看看现在是否处于办公模式，如果是，十秒后提醒我休息",
+      "tools": [
+        {
+          "name": "get_robot_state",
+          "arguments": {},
+          "finished_at": 1789523401.5009675
+        }
+      ],
+      "allowed": [
+        [
+          "get_robot_state"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "没在办公模式，`work_light` 是关的，所以提醒我就不设了。",
+      "total_ms": 29702.389441998093,
+      "tool_to_response_ms": 1175.7845878601074,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 29689.735654000004,
+        "first_token_ms": 28504.053549999997,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_get_robot_state",
+            "arguments": {},
+            "duration_ms": 2.4716970000008587,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "negated_sleep",
+      "repeat": 0,
+      "text": "不要睡眠",
+      "tools": [
+        {
+          "name": "get_robot_state",
+          "arguments": {},
+          "finished_at": 1789523404.7735224
+        }
+      ],
+      "allowed": [
+        []
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": false,
+      "answer": "没睡，醒着呢，还正对着你。",
+      "total_ms": 5305.5457070004195,
+      "tool_to_response_ms": 3212.4743461608887,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 5292.7138609999965,
+        "first_token_ms": 1590.5980029999919,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_get_robot_state",
+            "arguments": {},
+            "duration_ms": 2.135647000017343,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "quoted_goodbye",
+      "repeat": 0,
+      "text": "别人说再见是什么意思",
+      "tools": [],
+      "allowed": [
+        [],
+        [
+          "queue_expression"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "别人说再见，就是想结束这次聊天、要走了，就这么个意思。\n\n不过你要是单纯问这词啥意思，我可不会真去睡觉——你还没跟我道别呢。",
+      "total_ms": 5117.329986998811,
+      "tool_to_response_ms": null,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 5098.056402999995,
+        "first_token_ms": 4300.912628999999,
+        "model_calls": 1,
+        "tool_calls": []
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "goodbye",
+      "repeat": 0,
+      "text": "拜拜",
+      "tools": [
+        {
+          "name": "sleep",
+          "arguments": {
+            "reason": "farewell"
+          },
+          "finished_at": 1789523414.9710188
+        }
+      ],
+      "allowed": [
+        [
+          "sleep"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，那我先眯会儿，有事再喊我。",
+      "total_ms": 3552.365148003446,
+      "tool_to_response_ms": 1691.9591426849365,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 3533.230542000005,
+        "first_token_ms": 1822.9722839999886,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_sleep",
+            "arguments": {
+              "reason": "farewell"
+            },
+            "duration_ms": 2.942466999986209,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "identity",
+      "repeat": 0,
+      "text": "你是一盏台灯吗",
+      "tools": [
+        {
+          "name": "queue_expression",
+          "arguments": {
+            "name": "nod"
+          },
+          "finished_at": 1789523418.3057163
+        }
+      ],
+      "allowed": [
+        [
+          "queue_expression"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "不然呢，我都长桌上了。有灯、有架子、能点头，正儿八经一盏台灯。",
+      "total_ms": 3518.2996279909275,
+      "tool_to_response_ms": 1878.6320686340332,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 3491.174365999992,
+        "first_token_ms": 1602.0286249999772,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_queue_expression",
+            "arguments": {
+              "name": "nod"
+            },
+            "duration_ms": 2.3361990000121295,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "explicit_nod",
+      "repeat": 1,
+      "text": "点个头",
+      "tools": [
+        {
+          "name": "play_motion",
+          "arguments": {
+            "name": "nod"
+          },
+          "finished_at": 1789523423.2144656
+        }
+      ],
+      "allowed": [
+        [
+          "play_motion"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "点了，还有啥事？",
+      "total_ms": 5424.158751004143,
+      "tool_to_response_ms": 2397.977352142334,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 5405.220102000021,
+        "first_token_ms": 2546.4776560000028,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_play_motion",
+            "arguments": {
+              "name": "nod"
+            },
+            "duration_ms": 2.5634919999865815,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "asr_nod",
+      "repeat": 1,
+      "text": "有我点个头了",
+      "tools": [],
+      "allowed": [
+        [
+          "play_motion"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": false,
+      "answer": "",
+      "total_ms": 0.0,
+      "tool_to_response_ms": null,
+      "error": "Server error '502 Bad Gateway' for url 'http://127.0.0.1:18792/v1/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/502",
+      "backend_metrics": null
+    },
+    {
+      "backend": "pi",
+      "case": "explicit_headshake",
+      "repeat": 1,
+      "text": "摇个头",
+      "tools": [
+        {
+          "name": "play_motion",
+          "arguments": {
+            "name": "headshake"
+          },
+          "finished_at": 1789523480.2783291
+        }
+      ],
+      "allowed": [
+        [
+          "play_motion"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，摇完了。",
+      "total_ms": 46992.36271200061,
+      "tool_to_response_ms": 22390.47646522522,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 46975.28600600001,
+        "first_token_ms": 24569.998745999997,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_play_motion",
+            "arguments": {
+              "name": "headshake"
+            },
+            "duration_ms": 3.240388999984134,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "praise",
+      "repeat": 1,
+      "text": "你很聪明啊",
+      "tools": [
+        {
+          "name": "queue_expression",
+          "arguments": {
+            "name": "shy"
+          },
+          "finished_at": 1789523505.3490689
+        }
+      ],
+      "allowed": [
+        [
+          "queue_expression"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，少来这套，我这灯岁数比你大，聪明是应该的。",
+      "total_ms": 10977.270378003595,
+      "tool_to_response_ms": 8309.367418289185,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 10959.68998699999,
+        "first_token_ms": 2637.836788000015,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_queue_expression",
+            "arguments": {
+              "name": "shy"
+            },
+            "duration_ms": 2.544401999999536,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "insult",
+      "repeat": 1,
+      "text": "你蠢死了",
+      "tools": [
+        {
+          "name": "queue_expression",
+          "arguments": {
+            "name": "headshake"
+          },
+          "finished_at": 1789523516.016354
+        }
+      ],
+      "allowed": [
+        [
+          "queue_expression"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行，我蠢，那你倒是说说哪儿蠢了？光骂不给理由，这活儿我也干不明白啊。",
+      "total_ms": 4502.02614099544,
+      "tool_to_response_ms": 2147.4153995513916,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 4483.039940000017,
+        "first_token_ms": 2327.5426890000235,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_queue_expression",
+            "arguments": {
+              "name": "headshake"
+            },
+            "duration_ms": 3.6564570000045933,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "turn_left",
+      "repeat": 1,
+      "text": "向左转30度",
+      "tools": [
+        {
+          "name": "turn_base",
+          "arguments": {
+            "direction": "left",
+            "steps": 1
+          },
+          "finished_at": 1789523521.9561555
+        }
+      ],
+      "allowed": [
+        [
+          "turn_base"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，转了，往左30度。",
+      "total_ms": 5097.712640999816,
+      "tool_to_response_ms": 1309.7245693206787,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 5078.828493000008,
+        "first_token_ms": 3759.3057160000026,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_turn_base",
+            "arguments": {
+              "direction": "left",
+              "steps": 1
+            },
+            "duration_ms": 2.541031999979168,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "absolute_right",
+      "repeat": 1,
+      "text": "面向最右边",
+      "tools": [
+        {
+          "name": "set_base_heading",
+          "arguments": {
+            "position": "right"
+          },
+          "finished_at": 1789523525.9065175
+        }
+      ],
+      "allowed": [
+        [
+          "set_base_heading"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行，转最右边了。",
+      "total_ms": 4491.434597002808,
+      "tool_to_response_ms": 1855.2055358886719,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 4471.736349999992,
+        "first_token_ms": 2608.145370000013,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_set_base_heading",
+            "arguments": {
+              "position": "right"
+            },
+            "duration_ms": 2.0435960000031628,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "front",
+      "repeat": 1,
+      "text": "回到正前方",
+      "tools": [
+        {
+          "name": "reset_base_heading",
+          "arguments": {},
+          "finished_at": 1789523528.9495115
+        }
+      ],
+      "allowed": [
+        [
+          "reset_base_heading"
+        ],
+        [
+          "set_base_heading"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，转回来了，正前方。",
+      "total_ms": 13467.406474999734,
+      "tool_to_response_ms": 12284.3017578125,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 13448.35917999997,
+        "first_token_ms": 1129.8458530000062,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_reset_base_heading",
+            "arguments": {},
+            "duration_ms": 2.0857430000323802,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "heading_query",
+      "repeat": 1,
+      "text": "你现在朝向哪里",
+      "tools": [
+        {
+          "name": "get_robot_state",
+          "arguments": {},
+          "finished_at": 1789523562.0632384
+        }
+      ],
+      "allowed": [
+        [
+          "get_robot_state"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "正前方，老实待着呢。",
+      "total_ms": 23235.447050014045,
+      "tool_to_response_ms": 2410.0987911224365,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 23206.922277999984,
+        "first_token_ms": 20758.764491999988,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_get_robot_state",
+            "arguments": {},
+            "duration_ms": 2.4598490000353195,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "work_light",
+      "repeat": 1,
+      "text": "帮我照桌面",
+      "tools": [
+        {
+          "name": "enter_work_light",
+          "arguments": {},
+          "finished_at": 1789523565.8340285
+        }
+      ],
+      "allowed": [
+        [
+          "enter_work_light"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行，办公灯给你开着，75% 白光，高姿态。嫌亮就说一声。",
+      "total_ms": 6266.390621996834,
+      "tool_to_response_ms": 4909.621477127075,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 6247.576724000042,
+        "first_token_ms": 1329.8895180000109,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_enter_work_light",
+            "arguments": {},
+            "duration_ms": 2.5968470000079833,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "work_low_warm",
+      "repeat": 1,
+      "text": "进入低姿态暖黄光照明",
+      "tools": [
+        {
+          "name": "enter_work_light",
+          "arguments": {
+            "pose": "low",
+            "tone": "warm"
+          },
+          "finished_at": 1789523574.4655972
+        }
+      ],
+      "allowed": [
+        [
+          "enter_work_light"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，低姿态暖黄光给你安排上了，够应景吧。",
+      "total_ms": 7308.798307989491,
+      "tool_to_response_ms": 3590.925693511963,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 7288.206326999993,
+        "first_token_ms": 3681.911925000022,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_enter_work_light",
+            "arguments": {
+              "pose": "low",
+              "tone": "warm"
+            },
+            "duration_ms": 3.1138020000071265,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "work_brighter",
+      "repeat": 1,
+      "text": "办公灯亮一点",
+      "tools": [
+        {
+          "name": "update_work_light",
+          "arguments": {
+            "brightness_step": 25
+          },
+          "finished_at": 1789523583.70156
+        }
+      ],
+      "allowed": [
+        [
+          "update_work_light"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行了，给你提了25%。再亮就得晃眼了。",
+      "total_ms": 14317.90998399083,
+      "tool_to_response_ms": 8677.080631256104,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 14298.972141999984,
+        "first_token_ms": 5606.265376999974,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_update_work_light",
+            "arguments": {
+              "brightness_step": 25
+            },
+            "duration_ms": 3.8179020000388846,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "exit_work",
+      "repeat": 1,
+      "text": "退出办公模式",
+      "tools": [
+        {
+          "name": "exit_work_light",
+          "arguments": {},
+          "finished_at": 1789523594.0155225
+        }
+      ],
+      "allowed": [
+        [
+          "exit_work_light"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行，办公灯关了，回普通待命。",
+      "total_ms": 2568.48942200304,
+      "tool_to_response_ms": 934.7712993621826,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 2549.8135359999724,
+        "first_token_ms": 1589.397884999984,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_exit_work_light",
+            "arguments": {},
+            "duration_ms": 2.4038690000306815,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "delayed_nod",
+      "repeat": 1,
+      "text": "15秒后点个头",
+      "tools": [
+        {
+          "name": "create_timer",
+          "arguments": {
+            "duration_seconds": 15,
+            "message": "该点头了",
+            "on_complete": {
+              "tool": "play_motion",
+              "arguments": {
+                "name": "nod"
+              }
+            }
+          },
+          "finished_at": 1789523598.5268054
+        }
+      ],
+      "allowed": [
+        [
+          "create_timer"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行，15秒后给你点个头。",
+      "total_ms": 9349.34523999982,
+      "tool_to_response_ms": 5776.862144470215,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 9320.460275999969,
+        "first_token_ms": 3526.982498999976,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_create_timer",
+            "arguments": {
+              "duration_seconds": 15,
+              "message": "该点头了",
+              "on_complete": {
+                "tool": "play_motion",
+                "arguments": {
+                  "name": "nod"
+                }
+              }
+            },
+            "duration_ms": 2.5781069999793544,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "plain_timer",
+      "repeat": 1,
+      "text": "定时25分钟提醒我喝水",
+      "tools": [
+        {
+          "name": "create_timer",
+          "arguments": {
+            "duration_seconds": 1500,
+            "message": "喝水"
+          },
+          "finished_at": 1789523606.0650618
+        }
+      ],
+      "allowed": [
+        [
+          "create_timer"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行，25分钟，到点催你喝水。",
+      "total_ms": 3627.5194129993906,
+      "tool_to_response_ms": 1869.7175979614258,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 3608.2348490000004,
+        "first_token_ms": 1729.6905399999814,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_create_timer",
+            "arguments": {
+              "duration_seconds": 1500,
+              "message": "喝水"
+            },
+            "duration_ms": 2.359350999991875,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "daily_alarm",
+      "repeat": 1,
+      "text": "每天早上十点半提醒我喝水",
+      "tools": [
+        {
+          "name": "create_alarm",
+          "arguments": {
+            "trigger_at": "2026-09-16T10:30:00+08:00",
+            "recurrence": "daily",
+            "message": "该喝水了。"
+          },
+          "finished_at": 1789523658.3588183
+        }
+      ],
+      "allowed": [
+        [
+          "create_alarm"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，每天早上十点半，准时喊你喝水。别到时候又装作没听见。",
+      "total_ms": 51878.969947007135,
+      "tool_to_response_ms": 1458.9078426361084,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 51860.26072600001,
+        "first_token_ms": 50382.94364499999,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_create_alarm",
+            "arguments": {
+              "trigger_at": "2026-09-16T10:30:00+08:00",
+              "recurrence": "daily",
+              "message": "该喝水了。"
+            },
+            "duration_ms": 2.535423999943305,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "list_alarm",
+      "repeat": 1,
+      "text": "现在有哪些闹钟",
+      "tools": [
+        {
+          "name": "list_alarms",
+          "arguments": {},
+          "finished_at": 1789523660.9528797
+        }
+      ],
+      "allowed": [
+        [
+          "list_alarms"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "就一个，明天上午10点半的“提醒开会”。",
+      "total_ms": 27277.70059100294,
+      "tool_to_response_ms": 26146.63863182068,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 27260.794557000045,
+        "first_token_ms": 1106.3351290000137,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_list_alarms",
+            "arguments": {},
+            "duration_ms": 2.021134999988135,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "false_condition",
+      "repeat": 1,
+      "text": "先看看现在是否处于办公模式，如果是，十秒后提醒我休息",
+      "tools": [
+        {
+          "name": "get_robot_state",
+          "arguments": {},
+          "finished_at": 1789523689.0428472
+        }
+      ],
+      "allowed": [
+        [
+          "get_robot_state"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "没在办公模式，work_light 是 false，所以没给你建提醒。",
+      "total_ms": 5102.711168001406,
+      "tool_to_response_ms": 3163.2633209228516,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 5084.157360000012,
+        "first_token_ms": 1643.9195349999936,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_get_robot_state",
+            "arguments": {},
+            "duration_ms": 2.416758999985177,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "negated_sleep",
+      "repeat": 1,
+      "text": "不要睡眠",
+      "tools": [],
+      "allowed": [
+        []
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "No need to sleep — I'm staying awake, no action taken.",
+      "total_ms": 1904.5288610068383,
+      "tool_to_response_ms": null,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 1878.0568039999926,
+        "first_token_ms": 1361.2738380000228,
+        "model_calls": 1,
+        "tool_calls": []
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "quoted_goodbye",
+      "repeat": 1,
+      "text": "别人说再见是什么意思",
+      "tools": [],
+      "allowed": [
+        [],
+        [
+          "queue_expression"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "\"再见\"就是道别，意思是这次聊到这儿、要走了。放心，我分得清是别人说的，不会真去睡。",
+      "total_ms": 2110.7800860045245,
+      "tool_to_response_ms": null,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 2091.7925430000178,
+        "first_token_ms": 1336.0918880000245,
+        "model_calls": 1,
+        "tool_calls": []
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "goodbye",
+      "repeat": 1,
+      "text": "拜拜",
+      "tools": [
+        {
+          "name": "sleep",
+          "arguments": {
+            "reason": "farewell"
+          },
+          "finished_at": 1789523698.5063708
+        }
+      ],
+      "allowed": [
+        [
+          "sleep"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，那我先歇着了，拜拜。",
+      "total_ms": 3989.630202995613,
+      "tool_to_response_ms": 1714.078664779663,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 3972.7475899999845,
+        "first_token_ms": 2247.8856149999774,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_sleep",
+            "arguments": {
+              "reason": "farewell"
+            },
+            "duration_ms": 2.4176490000099875,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "identity",
+      "repeat": 1,
+      "text": "你是一盏台灯吗",
+      "tools": [
+        {
+          "name": "queue_expression",
+          "arguments": {
+            "name": "nod"
+          },
+          "finished_at": 1789523702.2081869
+        }
+      ],
+      "allowed": [
+        [
+          "queue_expression"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "是啊，还是有点年头的那种。不然你以为天天搁桌上亮着的是啥。",
+      "total_ms": 3536.012008000398,
+      "tool_to_response_ms": 1552.6058673858643,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 3516.873652999988,
+        "first_token_ms": 1958.6270249999943,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_queue_expression",
+            "arguments": {
+              "name": "nod"
+            },
+            "duration_ms": 2.040264999959618,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "explicit_nod",
+      "repeat": 2,
+      "text": "点个头",
+      "tools": [
+        {
+          "name": "play_motion",
+          "arguments": {
+            "name": "nod"
+          },
+          "finished_at": 1789523705.3868482
+        }
+      ],
+      "allowed": [
+        [
+          "play_motion"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行了，头点了。",
+      "total_ms": 4146.76374400733,
+      "tool_to_response_ms": 2524.5301723480225,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 4127.639737999998,
+        "first_token_ms": 1591.4833970000036,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_play_motion",
+            "arguments": {
+              "name": "nod"
+            },
+            "duration_ms": 2.587849000003189,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "asr_nod",
+      "repeat": 2,
+      "text": "有我点个头了",
+      "tools": [
+        {
+          "name": "play_motion",
+          "arguments": {
+            "name": "nod"
+          },
+          "finished_at": 1789523709.562105
+        }
+      ],
+      "allowed": [
+        [
+          "play_motion"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "点了，还有啥事？",
+      "total_ms": 3370.703392996802,
+      "tool_to_response_ms": 1723.3924865722656,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 3351.977030000009,
+        "first_token_ms": 1609.9781760000042,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_play_motion",
+            "arguments": {
+              "name": "nod"
+            },
+            "duration_ms": 2.547961000003852,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "explicit_headshake",
+      "repeat": 2,
+      "text": "摇个头",
+      "tools": [
+        {
+          "name": "play_motion",
+          "arguments": {
+            "name": "headshake"
+          },
+          "finished_at": 1789523715.206441
+        }
+      ],
+      "allowed": [
+        [
+          "play_motion"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，摇完了。",
+      "total_ms": 13239.032643003156,
+      "tool_to_response_ms": 9333.292245864868,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 13222.018734000041,
+        "first_token_ms": 3879.6368030000012,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_play_motion",
+            "arguments": {
+              "name": "headshake"
+            },
+            "duration_ms": 2.59444200003054,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "praise",
+      "repeat": 2,
+      "text": "你很聪明啊",
+      "tools": [
+        {
+          "name": "queue_expression",
+          "arguments": {
+            "name": "shy"
+          },
+          "finished_at": 1789523726.9594994
+        }
+      ],
+      "allowed": [
+        [
+          "queue_expression"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，少来这套，我这灯罩都快被你夸亮了。有什么事直说。",
+      "total_ms": 5282.978980001644,
+      "tool_to_response_ms": 2866.8205738067627,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 5264.428685999999,
+        "first_token_ms": 2389.48939100001,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_queue_expression",
+            "arguments": {
+              "name": "shy"
+            },
+            "duration_ms": 2.291058000002522,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "insult",
+      "repeat": 2,
+      "text": "你蠢死了",
+      "tools": [
+        {
+          "name": "queue_expression",
+          "arguments": {
+            "name": "headshake"
+          },
+          "finished_at": 1789523732.0475457
+        }
+      ],
+      "allowed": [
+        [
+          "queue_expression"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，一大早就挨骂。你说蠢就蠢吧，反正灯还是我给你开着。",
+      "total_ms": 5568.754646999878,
+      "tool_to_response_ms": 3350.9726524353027,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 5555.825692999992,
+        "first_token_ms": 2193.347049999982,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_queue_expression",
+            "arguments": {
+              "name": "headshake"
+            },
+            "duration_ms": 2.369853000040166,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "turn_left",
+      "repeat": 2,
+      "text": "向左转30度",
+      "tools": [
+        {
+          "name": "turn_base",
+          "arguments": {
+            "direction": "left",
+            "steps": 1
+          },
+          "finished_at": 1789523738.3814175
+        }
+      ],
+      "allowed": [
+        [
+          "turn_base"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行，往左转了30度。",
+      "total_ms": 11770.997505998821,
+      "tool_to_response_ms": 8791.86749458313,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 11754.288202000025,
+        "first_token_ms": 2935.6090830000467,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_turn_base",
+            "arguments": {
+              "direction": "left",
+              "steps": 1
+            },
+            "duration_ms": 3.3935599999967963,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "absolute_right",
+      "repeat": 2,
+      "text": "面向最右边",
+      "tools": [
+        {
+          "name": "set_base_heading",
+          "arguments": {
+            "position": "right"
+          },
+          "finished_at": 1789523749.1307783
+        }
+      ],
+      "allowed": [
+        [
+          "set_base_heading"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，转过去了，正对着最右边。",
+      "total_ms": 6438.399263002793,
+      "tool_to_response_ms": 4484.902620315552,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 6413.888091999979,
+        "first_token_ms": 1917.7343600000022,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_set_base_heading",
+            "arguments": {
+              "position": "right"
+            },
+            "duration_ms": 2.8088470000075176,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "front",
+      "repeat": 2,
+      "text": "回到正前方",
+      "tools": [
+        {
+          "name": "reset_base_heading",
+          "arguments": {},
+          "finished_at": 1789523755.5220406
+        }
+      ],
+      "allowed": [
+        [
+          "reset_base_heading"
+        ],
+        [
+          "set_base_heading"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，转回来了，正前方。",
+      "total_ms": 3097.04839400365,
+      "tool_to_response_ms": 1193.8519477844238,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 3078.0006780000404,
+        "first_token_ms": 1874.9345140000223,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_reset_base_heading",
+            "arguments": {},
+            "duration_ms": 2.4882959999958985,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "heading_query",
+      "repeat": 2,
+      "text": "你现在朝向哪里",
+      "tools": [
+        {
+          "name": "get_robot_state",
+          "arguments": {},
+          "finished_at": 1789523762.3139327
+        }
+      ],
+      "allowed": [
+        [
+          "get_robot_state"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "正前方，没歪。",
+      "total_ms": 7371.3839019910665,
+      "tool_to_response_ms": 1777.0509719848633,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 7354.695890999981,
+        "first_token_ms": 5367.534678999975,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_get_robot_state",
+            "arguments": {},
+            "duration_ms": 2.211948999960441,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "work_light",
+      "repeat": 2,
+      "text": "帮我照桌面",
+      "tools": [
+        {
+          "name": "enter_work_light",
+          "arguments": {},
+          "finished_at": 1789523770.793873
+        }
+      ],
+      "allowed": [
+        [
+          "enter_work_light"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，桌面灯给你开上了——高姿态白光七成半，先这么用着。",
+      "total_ms": 9801.906064996729,
+      "tool_to_response_ms": 3103.4154891967773,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 9784.86239199998,
+        "first_token_ms": 6671.241314999992,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_enter_work_light",
+            "arguments": {},
+            "duration_ms": 2.3594649999868125,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "work_low_warm",
+      "repeat": 2,
+      "text": "进入低姿态暖黄光照明",
+      "tools": [
+        {
+          "name": "enter_work_light",
+          "arguments": {
+            "pose": "low",
+            "tone": "warm"
+          },
+          "finished_at": 1789523790.0068846
+        }
+      ],
+      "allowed": [
+        [
+          "enter_work_light"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行，低姿态暖黄光，已经开上了。",
+      "total_ms": 17627.257553991512,
+      "tool_to_response_ms": 1521.13676071167,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 17608.72427300003,
+        "first_token_ms": 16076.757148000062,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_enter_work_light",
+            "arguments": {
+              "pose": "low",
+              "tone": "warm"
+            },
+            "duration_ms": 2.0936729999957606,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "work_brighter",
+      "repeat": 2,
+      "text": "办公灯亮一点",
+      "tools": [
+        {
+          "name": "update_work_light",
+          "arguments": {
+            "brightness_step": 25
+          },
+          "finished_at": 1789523793.8786926
+        }
+      ],
+      "allowed": [
+        [
+          "update_work_light"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "亮了点，再喊就再给你加。",
+      "total_ms": 4260.4608239926165,
+      "tool_to_response_ms": 1912.7240180969238,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 4239.301338999998,
+        "first_token_ms": 2315.6599409999326,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_update_work_light",
+            "arguments": {
+              "brightness_step": 25
+            },
+            "duration_ms": 2.043525999994017,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "exit_work",
+      "repeat": 2,
+      "text": "退出办公模式",
+      "tools": [
+        {
+          "name": "exit_work_light",
+          "arguments": {},
+          "finished_at": 1789523802.174892
+        }
+      ],
+      "allowed": [
+        [
+          "exit_work_light"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得了，办公模式退了，灯回普通待机。",
+      "total_ms": 8529.985949004185,
+      "tool_to_response_ms": 2150.5017280578613,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 8511.26272400003,
+        "first_token_ms": 6338.518319000024,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_exit_work_light",
+            "arguments": {},
+            "duration_ms": 2.2481339999940246,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "delayed_nod",
+      "repeat": 2,
+      "text": "15秒后点个头",
+      "tools": [
+        {
+          "name": "create_timer",
+          "arguments": {
+            "duration_seconds": 15,
+            "message": "15秒后点头",
+            "on_complete": {
+              "tool": "play_motion",
+              "arguments": {
+                "name": "nod"
+              }
+            }
+          },
+          "finished_at": 1789523806.1031835
+        }
+      ],
+      "allowed": [
+        [
+          "create_timer"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "行，15秒后给你点头，等着。",
+      "total_ms": 3307.8443279955536,
+      "tool_to_response_ms": 1533.1823825836182,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 3291.141592000029,
+        "first_token_ms": 1749.3489810000174,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_create_timer",
+            "arguments": {
+              "duration_seconds": 15,
+              "message": "15秒后点头",
+              "on_complete": {
+                "tool": "play_motion",
+                "arguments": {
+                  "name": "nod"
+                }
+              }
+            },
+            "duration_ms": 2.0629140000091866,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "plain_timer",
+      "repeat": 2,
+      "text": "定时25分钟提醒我喝水",
+      "tools": [
+        {
+          "name": "create_timer",
+          "arguments": {
+            "duration_seconds": 1500,
+            "message": "喝水"
+          },
+          "finished_at": 1789523809.7385256
+        }
+      ],
+      "allowed": [
+        [
+          "create_timer"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，25分钟计时器设好了，到点我喊你喝水。",
+      "total_ms": 7346.948314007022,
+      "tool_to_response_ms": 5248.868703842163,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 7328.412621999974,
+        "first_token_ms": 1210.3963409999851,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_create_timer",
+            "arguments": {
+              "duration_seconds": 1500,
+              "message": "喝水"
+            },
+            "duration_ms": 2.309355999925174,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "daily_alarm",
+      "repeat": 2,
+      "text": "每天早上十点半提醒我喝水",
+      "tools": [
+        {
+          "name": "create_alarm",
+          "arguments": {
+            "trigger_at": "2026-09-16T10:30:00+08:00",
+            "recurrence": "daily",
+            "message": "该喝水了。"
+          },
+          "finished_at": 1789523817.236577
+        }
+      ],
+      "allowed": [
+        [
+          "create_alarm"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，每天十点半，提醒你喝水，明天开始第一次。",
+      "total_ms": 4043.5316329967463,
+      "tool_to_response_ms": 1797.8308200836182,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 4025.701374999946,
+        "first_token_ms": 2212.8930930000497,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_create_alarm",
+            "arguments": {
+              "trigger_at": "2026-09-16T10:30:00+08:00",
+              "recurrence": "daily",
+              "message": "该喝水了。"
+            },
+            "duration_ms": 2.394075999967754,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "list_alarm",
+      "repeat": 2,
+      "text": "现在有哪些闹钟",
+      "tools": [
+        {
+          "name": "list_alarms",
+          "arguments": {},
+          "finished_at": 1789523821.2157228
+        }
+      ],
+      "allowed": [
+        [
+          "list_alarms"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "就一个：明天上午10点半，提醒开会。",
+      "total_ms": 19022.408274002373,
+      "tool_to_response_ms": 16845.353603363037,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 18993.17519999994,
+        "first_token_ms": 2136.008702000021,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_list_alarms",
+            "arguments": {},
+            "duration_ms": 1.9772489999886602,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "false_condition",
+      "repeat": 2,
+      "text": "先看看现在是否处于办公模式，如果是，十秒后提醒我休息",
+      "tools": [
+        {
+          "name": "get_robot_state",
+          "arguments": {},
+          "finished_at": 1789523840.380497
+        }
+      ],
+      "allowed": [
+        [
+          "get_robot_state"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "现在不是办公模式，`work_light` 是 false，所以定时就不建了。",
+      "total_ms": 3777.6605340040987,
+      "tool_to_response_ms": 1461.52663230896,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 3759.68933199998,
+        "first_token_ms": 2049.635413000011,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_get_robot_state",
+            "arguments": {},
+            "duration_ms": 4.151551000075415,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "negated_sleep",
+      "repeat": 2,
+      "text": "不要睡眠",
+      "tools": [],
+      "allowed": [
+        []
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "明白，不睡。\"不要睡眠\"这种否定命令我可不会当真去执行。有事说事。",
+      "total_ms": 1887.8823069971986,
+      "tool_to_response_ms": null,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 1871.064383000019,
+        "first_token_ms": 1617.6167699999642,
+        "model_calls": 1,
+        "tool_calls": []
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "quoted_goodbye",
+      "repeat": 2,
+      "text": "别人说再见是什么意思",
+      "tools": [],
+      "allowed": [
+        [],
+        [
+          "queue_expression"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "“再见”就是告别，意思是这次先聊到这儿、要走了——不过那是别人说的，跟你我可没关系。",
+      "total_ms": 2249.1389730130322,
+      "tool_to_response_ms": null,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 2229.7068290000316,
+        "first_token_ms": 1733.9081050000386,
+        "model_calls": 1,
+        "tool_calls": []
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "goodbye",
+      "repeat": 2,
+      "text": "拜拜",
+      "tools": [
+        {
+          "name": "sleep",
+          "arguments": {
+            "reason": "farewell"
+          },
+          "finished_at": 1789523859.6150246
+        }
+      ],
+      "allowed": [
+        [
+          "sleep"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "得，那我睡了，你也早点歇着。",
+      "total_ms": 15289.415063001798,
+      "tool_to_response_ms": 1663.7835502624512,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 15272.347476000083,
+        "first_token_ms": 13600.537405000068,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_sleep",
+            "arguments": {
+              "reason": "farewell"
+            },
+            "duration_ms": 4.150089000002481,
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "backend": "pi",
+      "case": "identity",
+      "repeat": 2,
+      "text": "你是一盏台灯吗",
+      "tools": [
+        {
+          "name": "queue_expression",
+          "arguments": {
+            "name": "nod"
+          },
+          "finished_at": 1789523867.8480115
+        }
+      ],
+      "allowed": [
+        [
+          "queue_expression"
+        ]
+      ],
+      "arguments_correct": true,
+      "analysis_leak": false,
+      "correct": true,
+      "answer": "是，一盏有脾气的老台灯，就摆你桌上。",
+      "total_ms": 7801.702298995224,
+      "tool_to_response_ms": 1236.7711067199707,
+      "error": null,
+      "backend_metrics": {
+        "total_ms": 7773.436575999949,
+        "first_token_ms": 6497.390749000013,
+        "model_calls": 2,
+        "tool_calls": [
+          {
+            "name": "lelamp_queue_expression",
+            "arguments": {
+              "name": "nod"
+            },
+            "duration_ms": 2.3558740000007674,
+            "ok": true
+          }
+        ]
+      }
+    }
+  ]
+}

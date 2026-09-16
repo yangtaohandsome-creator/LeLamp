@@ -1,7 +1,9 @@
 """Hardware-free regression checks for the architecture migration."""
 import asyncio
 import os
+import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import numpy as np
@@ -20,6 +22,10 @@ class FakeMotion:
         self.events = []
         self.started = asyncio.Event()
         self.block_play = False
+        self.base_yaw_offset_degrees = 0.0
+
+    def set_base_yaw_offset_degrees(self, degrees):
+        self.base_yaw_offset_degrees = float(degrees)
 
     async def play(self, name, transition_seconds=None):
         self.events.append("play:" + name)
@@ -34,11 +40,13 @@ class FakeMotion:
     async def sleep(self):
         self.events.append("sleep")
 
-    async def standby(self):
+    async def standby(self, transition_seconds=None):
         self.events.append("standby")
+        self.standby_transition = transition_seconds
 
-    async def work_pose(self, pose="high"):
+    async def work_pose(self, pose="high", transition_seconds=None):
         self.events.append("work:" + pose)
+        self.work_transition = transition_seconds
 
     def close(self):
         pass
@@ -92,6 +100,19 @@ class FakeLighting:
 
 
 class AppTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self._tempdir = tempfile.TemporaryDirectory()
+        self._state_patch = patch.dict(os.environ, {
+            "MOTION_HEADING_STATE_FILE": os.path.join(
+                self._tempdir.name, "motion_heading.json"
+            )
+        })
+        self._state_patch.start()
+
+    def tearDown(self):
+        self._state_patch.stop()
+        self._tempdir.cleanup()
+
     async def test_plain_motion_returns_to_standby(self):
         motion = FakeMotion()
         app = LampApp(motion=motion)
@@ -200,6 +221,19 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
         await app.handle_text("点头", "session")
         self.assertEqual(motion.events, ["play:nod", "play:stopped", "standby"])
 
+    async def test_local_motion_does_not_consume_stale_agent_expression(self):
+        motion = FakeMotion()
+        app = LampApp(motion=motion, lighting=FakeLighting())
+        rejected = await app.tools.execute("queue_expression", {"name": "nod"})
+        self.assertFalse(rejected.data["queued"])
+        app._pending_expression = ("expired-turn", "nod")
+
+        result = await app.handle_text("点个头", "session")
+
+        self.assertIsNone(result.expression)
+        self.assertIsNone(app._pending_expression)
+        self.assertEqual(motion.events, ["play:nod", "play:stopped", "standby"])
+
     async def test_work_light_defaults_adjust_and_reset(self):
         motion = FakeMotion()
         lighting = FakeLighting()
@@ -229,6 +263,71 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
         await app.play_motion("headshake")
         self.assertAlmostEqual(motion.play_transition, 0.5)
         self.assertEqual(motion.events[-1], "work:low")
+
+    async def test_base_turn_persists_and_becomes_motion_neutral(self):
+        motion = FakeMotion()
+        app = LampApp(motion=motion, lighting=FakeLighting())
+
+        outcome = await app.tools.execute(
+            "turn_base", {"direction": "left", "steps": 2}
+        )
+
+        self.assertEqual(outcome.data["base_heading_degrees"], 60)
+        self.assertEqual(app.get_robot_state()["base_heading_degrees"], 60)
+        self.assertEqual(app.get_robot_state()["base_heading_position"], "left")
+        self.assertEqual(motion.base_yaw_offset_degrees, 60)
+        self.assertEqual(motion.events[-1], "standby")
+        self.assertAlmostEqual(motion.standby_transition, 0.5)
+
+        restored_motion = FakeMotion()
+        restored = LampApp(motion=restored_motion, lighting=FakeLighting())
+        self.assertEqual(restored.base_heading_degrees, 60)
+        self.assertEqual(restored_motion.base_yaw_offset_degrees, 60)
+
+    async def test_base_turn_rejects_third_step_without_changing_heading(self):
+        motion = FakeMotion()
+        app = LampApp(motion=motion, lighting=FakeLighting())
+        await app.turn_base("right", 2)
+        with self.assertRaisesRegex(ValueError, "安全范围"):
+            await app.turn_base("right", 1)
+        self.assertEqual(app.base_heading_degrees, -60)
+        self.assertEqual(app.get_robot_state()["base_heading_position"], "right")
+
+    async def test_base_reset_returns_to_original_front(self):
+        motion = FakeMotion()
+        app = LampApp(motion=motion, lighting=FakeLighting())
+        await app.turn_base("left", 1)
+        outcome = await app.tools.execute("reset_base_heading")
+        self.assertEqual(outcome.data["base_heading_degrees"], 0)
+        self.assertEqual(motion.base_yaw_offset_degrees, 0)
+        self.assertEqual(app.get_robot_state()["base_heading_position"], "front")
+
+    async def test_absolute_heading_crosses_from_one_limit_to_the_other(self):
+        motion = FakeMotion()
+        app = LampApp(motion=motion, lighting=FakeLighting())
+        await app.tools.execute("set_base_heading", {"position": "left"})
+        self.assertEqual(app.base_heading_degrees, 60)
+
+        outcome = await app.tools.execute(
+            "set_base_heading", {"position": "right"}
+        )
+
+        self.assertEqual(outcome.data["base_heading_degrees"], -60)
+        self.assertEqual(motion.base_yaw_offset_degrees, -60)
+
+    async def test_motion_controller_translates_heading_into_calibrated_units(self):
+        bus = SimpleNamespace(
+            calibration={
+                "base_yaw": SimpleNamespace(range_min=946, range_max=3177)
+            },
+            motors={"base_yaw": SimpleNamespace(model="sts3215")},
+            model_resolution_table={"sts3215": 4096},
+        )
+        robot = SimpleNamespace(bus=bus)
+        controller = MotionController(robot=robot)
+        controller.set_base_yaw_offset_degrees(30)
+        shifted = controller._with_base_heading({"base_yaw.pos": 0.0})
+        self.assertAlmostEqual(shifted["base_yaw.pos"], 30.59, places=2)
 
     async def test_agent_sleep_request_becomes_shutdown_result(self):
         motion = FakeMotion()
@@ -265,7 +364,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
             handle = await app.submit_announcement(
                 source="local_reply", text=result.text,
                 priority=AnnouncementPriority.LOCAL_REPLY,
-                expression=app.take_pending_expression(),
+                expression=result.expression,
             )
             await app.drain_announcements()
             spoken = await handle.wait()
@@ -295,7 +394,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
             await app.submit_announcement(
                 source="local_reply", text=result.text,
                 priority=AnnouncementPriority.LOCAL_REPLY,
-                expression=app.take_pending_expression(),
+                expression=result.expression,
             )
             await app.drain_announcements()
         self.assertEqual(motion.events, ["play:happy_wiggle", "play:stopped", "standby"])
@@ -328,7 +427,10 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
                 await asyncio.sleep(0)
             await app.drain_announcements()
             result = await remote
-        self.assertEqual(result, RemoteActionResult("回头见。", "shutdown_requested", True))
+        self.assertEqual(
+            result,
+            RemoteActionResult("回头见。", "shutdown_requested", None, True),
+        )
         mocked_speak.assert_called_once_with("回头见。")
         self.assertEqual(motion.events, ["standby", "sleep"])
         self.assertTrue(app.mechanically_asleep)

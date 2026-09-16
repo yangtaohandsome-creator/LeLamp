@@ -31,6 +31,8 @@ class ToolExecutor:
     SCHEDULED_TOOLS = {
         "play_motion", "set_light", "enter_work_light",
         "update_work_light", "exit_work_light", "sleep", "stop_tracking",
+        "turn_base", "reset_base_heading",
+        "set_base_heading",
     }
 
     def __init__(self, app: "LampApp") -> None:
@@ -135,6 +137,33 @@ class ToolExecutor:
                 )
             await self.app.play_motion(motion)
             return ToolOutcome("completed", "动作已完成", {"motion": motion})
+
+        if name == "turn_base":
+            direction = str(args.get("direction", ""))
+            steps = args.get("steps", 1)
+            if isinstance(steps, bool) or not isinstance(steps, int):
+                raise ValueError("steps 必须是正整数")
+            heading = await self.app.turn_base(direction, steps)
+            return ToolOutcome(
+                "completed", "底座转向已完成",
+                {"direction": direction, "steps": steps,
+                 "base_heading_degrees": heading},
+            )
+
+        if name == "reset_base_heading":
+            heading = await self.app.reset_base_heading()
+            return ToolOutcome(
+                "completed", "底座已回到初始正面",
+                {"base_heading_degrees": heading},
+            )
+
+        if name == "set_base_heading":
+            position = str(args.get("position", ""))
+            heading = await self.app.set_base_heading(position)
+            return ToolOutcome(
+                "completed", "底座绝对朝向已设置",
+                {"position": position, "base_heading_degrees": heading},
+            )
 
         if name == "queue_expression":
             expression = str(args.get("name", ""))

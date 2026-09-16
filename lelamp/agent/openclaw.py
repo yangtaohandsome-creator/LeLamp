@@ -7,9 +7,10 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
 
+from .common import AgentError, SPOKEN_OUTPUT_RULE, sanitize_spoken_content
 
-class OpenClawError(RuntimeError):
-    pass
+
+OpenClawError = AgentError
 
 
 def build_messages(text: str) -> list[dict[str, str]]:
@@ -30,8 +31,11 @@ def build_messages(text: str) -> list[dict[str, str]]:
                 f"当地 IANA 时区是 {timezone_id or '未知'}，当前当地时间是 {local_time}。"
                 "用户询问本地、这里或未指定地点的天气等位置相关信息时，使用这个城市；"
                 "用户明确指定其他地点时，以用户指定地点为准。"
+                + SPOKEN_OUTPUT_RULE
             ),
         })
+    else:
+        messages.append({"role": "system", "content": SPOKEN_OUTPUT_RULE})
     messages.append({"role": "user", "content": text})
     return messages
 
@@ -63,6 +67,6 @@ async def ask_agent(text: str, session_id: str) -> str:
         content = response.json()["choices"][0]["message"].get("content", "")
         if not isinstance(content, str):
             raise OpenClawError("OpenClaw 返回了不支持的消息格式")
-        return content.strip()
+        return sanitize_spoken_content(content)
     except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
         raise OpenClawError(f"OpenClaw 调用失败: {exc}") from exc

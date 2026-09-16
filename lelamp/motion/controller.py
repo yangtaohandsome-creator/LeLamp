@@ -34,6 +34,35 @@ class MotionController:
         self.robot = robot
         self._device_lock = None
         self.recordings_dir = RECORDINGS_DIR
+        self.base_yaw_offset_degrees = 0.0
+
+    def set_base_yaw_offset_degrees(self, degrees):
+        self.base_yaw_offset_degrees = float(degrees)
+
+    def _base_yaw_offset_normalized(self):
+        """Convert a physical offset to the calibration's -100..100 units."""
+        self.connect()
+        calibration = self.robot.bus.calibration["base_yaw"]
+        model = self.robot.bus.motors["base_yaw"].model
+        max_resolution = self.robot.bus.model_resolution_table[model] - 1
+        calibrated_degrees = (
+            (calibration.range_max - calibration.range_min) * 360.0 / max_resolution
+        )
+        if calibrated_degrees <= 0:
+            raise ValueError("base_yaw 校准范围无效")
+        return self.base_yaw_offset_degrees * 200.0 / calibrated_degrees
+
+    def _with_base_heading(self, action):
+        shifted = dict(action)
+        joint = "base_yaw.pos"
+        if joint not in shifted:
+            return shifted
+        shifted[joint] = float(shifted[joint]) + self._base_yaw_offset_normalized()
+        if not -100.0 <= shifted[joint] <= 100.0:
+            raise ValueError(
+                f"动作叠加当前朝向后超出 base_yaw 校准范围: {shifted[joint]:.2f}"
+            )
+        return shifted
 
     def connect(self):
         if self.robot is not None:
@@ -59,7 +88,7 @@ class MotionController:
             self._device_lock = None
             raise
 
-    async def move_to(self, target, duration):
+    async def _move_to_target(self, target, duration):
         self.connect()
         hold_current_and_enable(self.robot)
         current = read_current_action(self.robot)
@@ -70,11 +99,16 @@ class MotionController:
             self.robot.send_action(action)
             await asyncio.sleep(max(0, duration / steps - (asyncio.get_running_loop().time() - before)))
 
+    async def move_to(self, target, duration):
+        await self._move_to_target(self._with_base_heading(target), duration)
+
     async def play(self, name, transition_seconds=None):
-        actions = load_recording(name, self.recordings_dir)
+        # Transform and validate every frame before the lamp starts moving.
+        actions = [self._with_base_heading(action)
+                   for action in load_recording(name, self.recordings_dir)]
         if transition_seconds is None:
             transition_seconds = startup_transition_seconds()
-        await self.move_to(actions[0], transition_seconds)
+        await self._move_to_target(actions[0], transition_seconds)
         for action in actions[1:]:
             before = asyncio.get_running_loop().time()
             self.robot.send_action(action)
@@ -87,17 +121,19 @@ class MotionController:
         self.robot.bus.disable_torque()
         print("睡眠动作完成，舵机扭矩已释放。", flush=True)
 
-    async def standby(self):
+    async def standby(self, transition_seconds=None):
         """Move to the configured awake pose and keep torque enabled."""
-        await self.move_to(standby_action(), startup_transition_seconds())
+        duration = startup_transition_seconds() if transition_seconds is None else transition_seconds
+        await self.move_to(standby_action(), duration)
         print("已进入待机姿态，舵机扭矩保持。", flush=True)
 
-    async def work_pose(self, pose="high"):
+    async def work_pose(self, pose="high", transition_seconds=None):
         """Move to a saved desk-lighting pose and keep torque enabled."""
         if pose not in ("high", "low"):
             raise ValueError("办公姿态必须是 high 或 low")
         target = reading_action() if pose == "high" else reading_low_action()
-        await self.move_to(target, work_transition_seconds())
+        duration = work_transition_seconds() if transition_seconds is None else transition_seconds
+        await self.move_to(target, duration)
         print(f"已进入办公照明姿态（{pose}），舵机扭矩保持。", flush=True)
 
     def close(self):

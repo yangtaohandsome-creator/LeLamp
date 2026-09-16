@@ -5,7 +5,37 @@ import httpx
 from .config import env_float
 from .audio import scale_pcm_s16le
 
-def speak(text: str, on_playback_start=None) -> tuple[float, float, float]:
+_edge_client = None
+_edge_lock = __import__("threading").Lock()
+
+
+def _get_edge_client():
+    global _edge_client
+    with _edge_lock:
+        if _edge_client is None:
+            from .edge_tts import EdgeSpeechClient
+            _edge_client = EdgeSpeechClient()
+        return _edge_client
+
+
+def preconnect_tts() -> None:
+    """Speculatively prepare the selected online backend without blocking."""
+    if os.getenv("TTS_BACKEND", "remote").strip().lower() != "edge":
+        return
+    try:
+        _get_edge_client().preconnect()
+    except Exception as exc:
+        print(f"Edge TTS 预连接启动失败，将使用远程 TTS: {exc}", flush=True)
+
+
+def close_tts() -> None:
+    global _edge_client
+    with _edge_lock:
+        client, _edge_client = _edge_client, None
+    if client is not None:
+        client.close()
+
+def _speak_remote(text: str, on_playback_start=None) -> tuple[float, float, float]:
     tts_url = os.getenv("TTS_URL", "http://192.168.40.209:8200/v1/tts/stream")
     request_started = time.perf_counter()
     player = None
@@ -69,3 +99,19 @@ def speak(text: str, on_playback_start=None) -> tuple[float, float, float]:
         last - first,
         total_bytes / (sample_rate * channels * 2),
     )
+
+
+def speak(text: str, on_playback_start=None) -> tuple[float, float, float]:
+    backend = os.getenv("TTS_BACKEND", "remote").strip().lower()
+    if backend == "remote":
+        return _speak_remote(text, on_playback_start)
+    if backend != "edge":
+        raise ValueError(f"不支持的 TTS_BACKEND: {backend}")
+    try:
+        return _get_edge_client().speak(text, on_playback_start)
+    except Exception as exc:
+        fallback = os.getenv("TTS_FALLBACK_BACKEND", "remote").strip().lower()
+        if fallback != "remote":
+            raise
+        print(f"Edge TTS 不可用，回退远程 TTS: {exc}", flush=True)
+        return _speak_remote(text, on_playback_start)

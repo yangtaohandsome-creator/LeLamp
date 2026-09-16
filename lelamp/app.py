@@ -1,5 +1,6 @@
 import asyncio
 import os
+import signal
 import sys
 import time
 import uuid
@@ -15,9 +16,9 @@ from .voice.audio import (
 from .voice.kws import make_spotter
 from .voice.vad import CaptureInterrupted, capture_utterance
 from .voice.asr import transcribe
-from .voice.tts import speak
+from .voice.tts import close_tts, preconnect_tts, speak
 from .voice.announcement import Announcement, AnnouncementPriority, AnnouncementQueue
-from .agent.openclaw import OpenClawError, ask_agent
+from .agent import AgentError, ask_agent, clear_session
 from .control import ControlServer
 from .remote_text import RemoteTextServer
 from .tools import ToolExecutor
@@ -33,6 +34,7 @@ class ActionResult:
 
     text: str
     status: str = "completed"
+    expression: str | None = None
 
 
 @dataclass(frozen=True)
@@ -41,6 +43,9 @@ class RemoteActionResult(ActionResult):
 
 async def run_voice(app) -> None:
     load_voice_config()
+    # Prepare Edge while KWS is waiting. Wake detection calls this again, so a
+    # failed startup connection gets another chance without delaying speech.
+    preconnect_tts()
     model_dir = Path(os.getenv("KWS_MODEL_DIR", "kws_models/sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01"))
     keywords_file = Path(os.getenv("KWS_KEYWORDS_FILE", str(model_dir / "keywords_xiao_deng.txt")))
     spotter = make_spotter(model_dir, keywords_file)
@@ -60,7 +65,7 @@ async def run_voice(app) -> None:
     pending_noise_levels: list[float] = []
     conversation_deadline: float | None = None
 
-    async def play_pending_announcements() -> None:
+    async def play_pending_announcements(*, restore_light: bool = True) -> None:
         """Give the sole TTS consumer a safe window with capture stopped."""
         nonlocal capture, stream, pending_noise_levels, conversation_deadline
         if not app.announcement_pending():
@@ -78,7 +83,8 @@ async def run_voice(app) -> None:
             env_float("VAD_CAPTURE_WARMUP_SECONDS", 0.5),
         )
         stream = spotter.create_stream()
-        app.light_state("listening" if conversation_active else "wake_required")
+        if restore_light:
+            app.light_state("listening" if conversation_active else "wake_required")
 
     async def enter_sleep_waiting(message: str, force_sleep: bool = False) -> None:
         """Park the mechanics, then keep this process listening for the next wake."""
@@ -99,6 +105,8 @@ async def run_voice(app) -> None:
                 print(f"进入睡眠姿态失败: {exc}", file=sys.stderr, flush=True)
         conversation_active = False
         conversation_deadline = None
+        if conversation_id is not None:
+            await clear_session(conversation_id)
         conversation_id = None
         conversation_turns = 0
         pending_noise_levels = []
@@ -130,6 +138,7 @@ async def run_voice(app) -> None:
                 conversation_active = True
                 conversation_id = uuid.uuid4().hex
                 conversation_turns = 0
+                preconnect_tts()
                 app.light_state("wake_ack")
                 if app.sound_configured("wake"):
                     await app.submit_announcement(
@@ -208,10 +217,16 @@ async def run_voice(app) -> None:
                             source="local_reply",
                             text=answer,
                             priority=AnnouncementPriority.LOCAL_REPLY,
-                            callback_info={"sleep_after": shutdown_requested},
-                            expression=app.take_pending_expression(),
+                            # The voice loop owns local farewell shutdown so it
+                            # can move straight from speaking to session_end.
+                            # Remote/scheduled announcements still use the
+                            # queue-level sleep_after path.
+                            callback_info={},
+                            expression=result.expression,
                         )
-                    await play_pending_announcements()
+                    await play_pending_announcements(
+                        restore_light=not shutdown_requested
+                    )
                     spoken = await reply_handle.wait()
                     if not spoken.success:
                         raise RuntimeError(f"播报失败: {spoken.error}")
@@ -226,7 +241,8 @@ async def run_voice(app) -> None:
                         f"本轮总耗时: {time.perf_counter() - turn_started:.2f} 秒",
                         flush=True,
                     )
-                    app.light_state("turn_done")
+                    if not shutdown_requested:
+                        app.light_state("turn_done")
             except Exception as exc:
                 app.light_state("error")
                 print(f"Voice turn failed: {exc}", file=sys.stderr, flush=True)
@@ -285,8 +301,12 @@ class LampApp:
         self.work_pose = "high"
         self.work_tone = "white"
         self.work_brightness = 75
+        from .motion.heading import load_heading
+        self.base_heading_degrees = load_heading()
+        self._apply_base_heading(self.base_heading_degrees)
         self._shutdown_reason: str | None = None
-        self._pending_expression: str | None = None
+        self._active_agent_turn_id: str | None = None
+        self._pending_expression: tuple[str, str] | None = None
         self._agent_turn_text: str | None = None
         import threading
         self._local_speech_active = threading.Event()
@@ -413,7 +433,7 @@ class LampApp:
                         f"scheduled-{item.announcement_id}-{uuid.uuid4().hex}",
                     )
                     message = result.text or message
-                    expression = self.take_pending_expression()
+                    expression = result.expression
                     sleep_after = result.status == "shutdown_requested"
                     print(
                         f"SCHEDULE AGENT END: {item.announcement_id} | {result.status}",
@@ -511,6 +531,79 @@ class LampApp:
             self.current_motion_task = task
             self.mechanically_asleep = False
         await task
+
+    def _apply_base_heading(self, logical_degrees):
+        from .motion.config import base_yaw_left_sign
+        setter = getattr(self.motion, "set_base_yaw_offset_degrees", None)
+        if setter is not None:
+            setter(float(logical_degrees) * base_yaw_left_sign())
+
+    async def turn_base(self, direction="left", steps=1):
+        """Turn in fixed increments and make the result the new motion neutral."""
+        from .motion.config import base_yaw_step_degrees
+
+        if direction not in ("left", "right"):
+            raise ValueError("direction 必须是 left 或 right")
+        if isinstance(steps, bool) or not isinstance(steps, int) or steps < 1:
+            raise ValueError("steps 必须是正整数")
+        delta = base_yaw_step_degrees() * steps * (1 if direction == "left" else -1)
+        return await self._move_to_base_heading(self.base_heading_degrees + delta)
+
+    async def set_base_heading(self, position="front"):
+        """Move to an absolute logical heading without Agent-side arithmetic."""
+        from .motion.config import base_yaw_max_offset_degrees
+        limit = base_yaw_max_offset_degrees()
+        targets = {"left": limit, "front": 0.0, "right": -limit}
+        if position not in targets:
+            raise ValueError("position 必须是 left、front 或 right")
+        return await self._move_to_base_heading(targets[position])
+
+    async def _move_to_base_heading(self, target_heading):
+        from .motion.config import (
+            active_transition_seconds, base_yaw_max_offset_degrees,
+            startup_transition_seconds,
+        )
+        from .motion.heading import save_heading
+
+        limit = base_yaw_max_offset_degrees()
+        if target_heading < -limit - 1e-6 or target_heading > limit + 1e-6:
+            raise ValueError(f"转向会超过安全范围，当前只允许 {-limit:g}°～{limit:g}°")
+        if abs(target_heading - self.base_heading_degrees) < 1e-6:
+            return self.base_heading_degrees
+
+        async with self._motion_lock:
+            self._mode_version += 1
+            await self._stop_motion()
+            previous_heading = self.base_heading_degrees
+            was_asleep = self.mechanically_asleep
+            previous_mode = self.current_mode
+            runner = self._mode_runner
+            self._apply_base_heading(target_heading)
+            try:
+                transition = (
+                    startup_transition_seconds() if was_asleep
+                    else active_transition_seconds()
+                )
+                if previous_mode == "work_light":
+                    await self.motion.work_pose(self.work_pose, transition)
+                else:
+                    await self.motion.standby(transition)
+                    if previous_mode == "sleep":
+                        self.current_mode = "standby"
+                        self._mode_runner = None
+                self.base_heading_degrees = target_heading
+                self.mechanically_asleep = False
+                save_heading(target_heading)
+                if runner is not None and previous_mode != "sleep":
+                    self.tracking = previous_mode == "tracking"
+                    self.current_motion_task = asyncio.create_task(runner())
+            except BaseException:
+                self._apply_base_heading(previous_heading)
+                raise
+        return self.base_heading_degrees
+
+    async def reset_base_heading(self):
+        return await self.set_base_heading("front")
 
     async def _play_and_restore(self, name, version, transition_seconds):
         await self.motion.play(name, transition_seconds)
@@ -680,9 +773,12 @@ class LampApp:
             return False, "自动情绪动作已关闭"
         if self.current_mode == "work_light" and not auto_expression_in_work_light():
             return False, "办公照明模式不执行自动情绪动作"
+        turn_id = self._active_agent_turn_id
+        if turn_id is None:
+            return False, "当前没有可绑定的 Agent 播报轮次"
         if self._pending_expression is not None:
             return False, "本轮已经选择了一个情绪动作"
-        self._pending_expression = name
+        self._pending_expression = (turn_id, name)
         print(f"EXPRESSION QUEUED: {name}", flush=True)
         return True, "情绪动作已加入本轮播报"
 
@@ -713,13 +809,19 @@ class LampApp:
         )
         return not (explicitly_named and command_word)
 
-    def clear_pending_expression(self) -> None:
-        self._pending_expression = None
+    def clear_pending_expression(self, turn_id: str | None = None) -> None:
+        if turn_id is None or (
+            self._pending_expression is not None
+            and self._pending_expression[0] == turn_id
+        ):
+            self._pending_expression = None
 
-    def take_pending_expression(self) -> str | None:
-        expression = self._pending_expression
+    def take_pending_expression(self, turn_id: str) -> str | None:
+        pending = self._pending_expression
+        if pending is None or pending[0] != turn_id:
+            return None
         self._pending_expression = None
-        return expression
+        return pending[1]
 
     async def _speak_now(
         self, text: str, expression: str | None
@@ -762,6 +864,12 @@ class LampApp:
         return reason
 
     def get_robot_state(self) -> dict:
+        if self.base_heading_degrees > 1e-6:
+            base_heading_position = "left"
+        elif self.base_heading_degrees < -1e-6:
+            base_heading_position = "right"
+        else:
+            base_heading_position = "front"
         return {
             "current_mode": self.current_mode,
             "motion_active": bool(
@@ -771,6 +879,8 @@ class LampApp:
             "tracking": self.tracking,
             "speaking": self.speaking,
             "mechanically_asleep": self.mechanically_asleep,
+            "base_heading_degrees": self.base_heading_degrees,
+            "base_heading_position": base_heading_position,
             "work_light": self.current_mode == "work_light",
             "work_pose": self.work_pose if self.current_mode == "work_light" else None,
             "work_tone": self.work_tone if self.current_mode == "work_light" else None,
@@ -778,6 +888,9 @@ class LampApp:
         }
 
     async def handle_text(self, text: str, session_id: str) -> ActionResult:
+        # A local exact command owns no Agent reply turn and must never consume
+        # an expression left by a stale or bypassed request.
+        self.clear_pending_expression()
         command = match_local_command(text)
         if command in ("nod", "headshake"):
             await self.tools.execute("play_motion", {"name": command})
@@ -791,20 +904,29 @@ class LampApp:
             return ActionResult(outcome.message + "。")
         if command in ("tracking", "reading"):
             return ActionResult("这个功能还没接好。")
-        self.clear_pending_expression()
+        turn_id = uuid.uuid4().hex
+        self._active_agent_turn_id = turn_id
         self._agent_turn_text = text
         try:
             answer = await ask_agent(text, session_id)
-        except OpenClawError as exc:
-            self.clear_pending_expression()
+            expression = self.take_pending_expression(turn_id)
+        except AgentError as exc:
+            self.clear_pending_expression(turn_id)
             print(str(exc), file=sys.stderr, flush=True)
             return ActionResult("脑子暂时连不上，你过会儿再试。", "failed")
         finally:
+            self.clear_pending_expression(turn_id)
+            if self._active_agent_turn_id == turn_id:
+                self._active_agent_turn_id = None
             self._agent_turn_text = None
         shutdown_reason = self.consume_shutdown_request()
         if shutdown_reason:
-            return ActionResult(answer or "回头见。", "shutdown_requested")
-        return ActionResult(answer or "刚才没听清，你再说一遍？")
+            return ActionResult(
+                answer or "回头见。", "shutdown_requested", expression
+            )
+        return ActionResult(
+            answer or "刚才没听清，你再说一遍？", expression=expression
+        )
 
     async def process_remote_text(self, text: str, session_id: str) -> RemoteActionResult:
         """Run remote text through the same Agent, Tools, TTS and sleep path."""
@@ -822,7 +944,7 @@ class LampApp:
                     callback_info={
                         "sleep_after": result.status == "shutdown_requested"
                     },
-                    expression=self.take_pending_expression(),
+                    expression=result.expression,
                 )
         spoken = False
         if handle is not None:
@@ -832,7 +954,9 @@ class LampApp:
             self.light_state("wake_required")
         else:
             self.light_state("turn_done")
-        return RemoteActionResult(result.text, result.status, spoken)
+        return RemoteActionResult(
+            result.text, result.status, result.expression, spoken
+        )
 
     async def close(self):
         try:
@@ -842,6 +966,7 @@ class LampApp:
             if self.motion.robot is not None:
                 await self.sleep()
         finally:
+            close_tts()
             self.motion.close()
             self.lighting.close()
 
@@ -859,32 +984,69 @@ def match_local_command(text):
 
 async def run():
     load_voice_config()
-    try:
-        location, refreshed = await asyncio.to_thread(resolve_location)
-        print(
-            ("公网 IP 定位完成" if refreshed else "公网 IP 定位失败，复用历史配置")
-            + f": {location.city} | 时区: {location.timezone}",
-            flush=True,
-        )
-    except LocationError as exc:
-        print(f"公网 IP 定位不可用: {exc}", file=sys.stderr, flush=True)
-    app = LampApp()
-    await app.start()
-    control = ControlServer(app.tools)
-    remote = RemoteTextServer(app)
-    await control.start()
-    await remote.start()
-    app.light_state("wake_required")
-    try:
-        await run_voice(app)
-    finally:
+    app = None
+    control = None
+    remote = None
+    voice_task = None
+    signal_task = None
+    stop_requested = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    installed_signals = []
+
+    for signum in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         try:
-            await remote.close()
-        finally:
+            loop.add_signal_handler(signum, stop_requested.set)
+            installed_signals.append(signum)
+        except (NotImplementedError, RuntimeError):
+            pass
+
+    try:
+        try:
+            location, refreshed = await asyncio.to_thread(resolve_location)
+            print(
+                ("公网 IP 定位完成" if refreshed else "公网 IP 定位失败，复用历史配置")
+                + f": {location.city} | 时区: {location.timezone}",
+                flush=True,
+            )
+        except LocationError as exc:
+            print(f"公网 IP 定位不可用: {exc}", file=sys.stderr, flush=True)
+
+        app = LampApp()
+        await app.start()
+        control = ControlServer(app.tools)
+        remote = RemoteTextServer(app)
+        await control.start()
+        await remote.start()
+        app.light_state("wake_required")
+
+        voice_task = asyncio.create_task(run_voice(app), name="lelamp-voice")
+        signal_task = asyncio.create_task(stop_requested.wait(), name="lelamp-stop-signal")
+        done, _ = await asyncio.wait(
+            (voice_task, signal_task), return_when=asyncio.FIRST_COMPLETED
+        )
+        if voice_task in done:
+            await voice_task
+    finally:
+        for task in (voice_task, signal_task):
+            if task is not None and not task.done():
+                task.cancel()
+        tasks = tuple(task for task in (voice_task, signal_task) if task is not None)
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        try:
             try:
-                await control.close()
+                if remote is not None:
+                    await remote.close()
             finally:
-                await app.close()
+                try:
+                    if control is not None:
+                        await control.close()
+                finally:
+                    if app is not None:
+                        await app.close()
+        finally:
+            for signum in installed_signals:
+                loop.remove_signal_handler(signum)
 
 
 def main():

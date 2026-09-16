@@ -8,6 +8,10 @@ Available work-light tools are `lelamp_enter_work_light`, `lelamp_update_work_li
 
 `lelamp_play_motion` immediately executes a motion explicitly requested by the user. `lelamp_queue_expression` queues one of `happy_wiggle`, `excited`, `sad`, `shy`, `shock`, `nod`, `headshake`, or `curious` and lets the Python app start it with the first TTS audio frame.
 
+`lelamp_turn_base` turns left or right in 30-degree steps. The app keeps that heading as the neutral base for later poses and recordings; `lelamp_reset_base_heading` returns to the original front.
+
+Absolute requests use `lelamp_set_base_heading(left|front|right)`, so moving from one limit to the opposite limit does not depend on the relative step cap.
+
 Timer tools create and manage multiple independent in-memory timers. Durations and remaining values use seconds. `lelamp_create_timer` may include either an `on_complete` fixed high-level Tool action or a self-contained `agent_task` that is sent through the Agent again at expiry. `LampApp` coordinates both paths; the timer module remains hardware-independent.
 
 Alarm tools manage persistent absolute-time reminders in the IANA timezone obtained by the Pi's startup IP-location lookup. Alarms support `once`, `daily`, `weekdays`, and `weekly` with an ISO `day_of_week`, and share Timer's optional fixed action or deferred Agent task behavior.

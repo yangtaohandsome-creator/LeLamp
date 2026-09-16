@@ -1,12 +1,47 @@
 import { Type } from "typebox";
 import { defineToolPlugin } from "openclaw/plugin-sdk/tool-plugin";
+import { McpSearchSource, SearchRouter } from "./search.js";
 
 const configSchema = Type.Object({
   baseUrl: Type.String({ description: "LeLamp control API origin." }),
   token: Type.String({ description: "LeLamp control API bearer token." }),
+  searchPrimaryUrl: Type.Optional(Type.String({ description: "Primary MCP web-search URL." })),
+  searchPrimaryToken: Type.Optional(Type.String({ description: "Primary MCP bearer token." })),
+  searchFallbackUrl: Type.Optional(Type.String({ description: "Fallback MCP web-search URL." })),
+  searchTimeoutMs: Type.Optional(Type.Integer({ minimum: 1000, maximum: 30000, default: 6000 })),
 });
 
-type PluginConfig = { baseUrl: string; token: string };
+type PluginConfig = {
+  baseUrl: string;
+  token: string;
+  searchPrimaryUrl?: string;
+  searchPrimaryToken?: string;
+  searchFallbackUrl?: string;
+  searchTimeoutMs?: number;
+};
+
+let searchRouter: SearchRouter | undefined;
+let searchConfigKey = "";
+
+function getSearchRouter(config: PluginConfig): SearchRouter {
+  if (!config.searchPrimaryUrl) throw new Error("未配置 searchPrimaryUrl");
+  const timeoutMs = config.searchTimeoutMs ?? 6000;
+  const key = JSON.stringify([
+    config.searchPrimaryUrl, config.searchPrimaryToken,
+    config.searchFallbackUrl, timeoutMs,
+  ]);
+  if (searchRouter && searchConfigKey === key) return searchRouter;
+  const primary = new McpSearchSource(
+    "dashscope", config.searchPrimaryUrl, "bailian_web_search",
+    timeoutMs, config.searchPrimaryToken,
+  );
+  const fallback = config.searchFallbackUrl
+    ? new McpSearchSource("self-hosted", config.searchFallbackUrl, "search", timeoutMs)
+    : undefined;
+  searchRouter = new SearchRouter(primary, fallback);
+  searchConfigKey = key;
+  return searchRouter;
+}
 
 const expressionName = Type.Union([
   Type.Literal("happy_wiggle"), Type.Literal("excited"),
@@ -19,7 +54,9 @@ const scheduledAction = Type.Object({
     Type.Literal("play_motion"), Type.Literal("set_light"),
     Type.Literal("enter_work_light"), Type.Literal("update_work_light"),
     Type.Literal("exit_work_light"), Type.Literal("sleep"),
-    Type.Literal("stop_tracking"),
+    Type.Literal("stop_tracking"), Type.Literal("turn_base"),
+    Type.Literal("reset_base_heading"),
+    Type.Literal("set_base_heading"),
   ]),
   arguments: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
 }, { additionalProperties: false });
@@ -56,9 +93,19 @@ const plugin = defineToolPlugin({
   configSchema,
   tools: (tool) => [
     tool({
+      name: "lelamp_web_search",
+      label: "Search the web",
+      description: "Search current web information. Use for weather, news, traffic, prices, schedules and other facts that may have changed. The primary source is Dashscope; a self-hosted source is used only if the primary source fails.",
+      parameters: Type.Object({
+        query: Type.String({ minLength: 1, maxLength: 500 }),
+      }, { additionalProperties: false }),
+      execute: (params, config, context) =>
+        getSearchRouter(config).search(params.query, context.signal),
+    }),
+    tool({
       name: "lelamp_play_motion",
       label: "Play LeLamp motion",
-      description: "Play one supported temporary lamp motion only because the user explicitly requested that exact action. NEVER use this for an emotion accompanying your own reply; you MUST use lelamp_queue_expression for autonomous expression.",
+      description: "用户明确命令台灯点头、摇头或做其他动作时必须调用此工具，而且只调用一次。包括带少量 ASR 错字但动作意图明确的请求。显式动作绝不能改用 lelamp_queue_expression。",
       parameters: Type.Object({
         name: expressionName,
       }, { additionalProperties: false }),
@@ -68,10 +115,41 @@ const plugin = defineToolPlugin({
     tool({
       name: "lelamp_queue_expression",
       label: "Queue LeLamp expression",
-      description: "Queue at most one expressive motion to begin with the spoken reply. You MUST use it when the reply has a clear attitude or emotion: nod=agreement, headshake=disagreement, happy_wiggle=happy, excited=strong excitement, sad=regret or empathy, shy=shy or receiving praise, shock=genuine surprise, curious=curious/confused. Neutral factual replies and clarification requests should use no expression.",
+      description: "仅用于台灯对聊天内容自主表达情绪，绝不能执行用户明确要求的点头、摇头等动作，也不能在其他实体工具成功后追加。夸奖用 shy，认同用 nod，否定用 headshake，开心用 happy_wiggle，兴奋用 excited，安慰用 sad，惊讶用 shock，好奇用 curious。",
       parameters: Type.Object({ name: expressionName }, { additionalProperties: false }),
       execute: (params, config, context) =>
         callLamp("queue_expression", params, config, context.signal),
+    }),
+    tool({
+      name: "lelamp_turn_base",
+      label: "Turn LeLamp base",
+      description: "Turn the whole lamp left or right in 30-degree steps. The new heading becomes the neutral heading for later poses and motions. Use only when the user explicitly requests a turn.",
+      parameters: Type.Object({
+        direction: Type.Union([Type.Literal("left"), Type.Literal("right")]),
+        steps: Type.Optional(Type.Integer({ minimum: 1, maximum: 2 })),
+      }, { additionalProperties: false }),
+      execute: (params, config, context) =>
+        callLamp("turn_base", params, config, context.signal),
+    }),
+    tool({
+      name: "lelamp_reset_base_heading",
+      label: "Reset LeLamp base heading",
+      description: "Return the lamp base to its original front heading and use it as the neutral heading again.",
+      parameters: Type.Object({}, { additionalProperties: false }),
+      execute: (_params, config, context) =>
+        callLamp("reset_base_heading", {}, config, context.signal),
+    }),
+    tool({
+      name: "lelamp_set_base_heading",
+      label: "Set LeLamp absolute base heading",
+      description: "Set an absolute base heading. Use left for 最左边, front for 正前方/回正, and right for 最右边. Do not calculate relative steps for these absolute requests.",
+      parameters: Type.Object({
+        position: Type.Union([
+          Type.Literal("left"), Type.Literal("front"), Type.Literal("right"),
+        ]),
+      }, { additionalProperties: false }),
+      execute: (params, config, context) =>
+        callLamp("set_base_heading", params, config, context.signal),
     }),
     tool({
       name: "lelamp_set_light",
@@ -131,7 +209,7 @@ const plugin = defineToolPlugin({
     tool({
       name: "lelamp_create_timer",
       label: "Create LeLamp timer",
-      description: "Create an independent timer. For a plain spoken reminder, set only duration_seconds and message: NEVER invent on_complete motion or lighting. Use on_complete only for a robot action the user explicitly requested. For an immediate conditional request, call search first, wait for its result, and call this tool only if the condition is confirmed true; never issue search and timer creation in parallel. Use agent_task only when searching or deciding must happen at expiry; make it self-contained and do not set on_complete with it.",
+      description: "Create an independent timer. For a plain spoken reminder, set only duration_seconds and message: NEVER invent on_complete motion or lighting. Use on_complete only for a robot action the user explicitly requested. HARD RULE for an immediate conditional request: evaluate the condition after search, and call this tool only when the condition is explicitly TRUE. If the condition is false, unknown, unsupported, or merely mentioned alongside a duration/reminder, NEVER call this tool. This remains true when reusing search evidence from an earlier turn. Never issue search and timer creation in parallel. Use agent_task only when searching or deciding must happen at expiry; make it self-contained and do not set on_complete with it.",
       parameters: Type.Object({
         duration_seconds: Type.Number({ exclusiveMinimum: 0 }),
         message: Type.String(),
@@ -227,7 +305,7 @@ const plugin = defineToolPlugin({
     tool({
       name: "lelamp_get_robot_state",
       label: "Get LeLamp state",
-      description: "Read the coordinated high-level state of the LeLamp robot.",
+      description: "Read the coordinated high-level state of the LeLamp robot. For base orientation, use base_heading_position as the authoritative left/front/right value; do not infer direction from the signed degree number.",
       parameters: Type.Object({}, { additionalProperties: false }),
       execute: (_params, config, context) =>
         callLamp("get_robot_state", {}, config, context.signal),
@@ -247,8 +325,7 @@ plugin.register = (api) => {
     "before_tool_call",
     (event, context) => {
       if (
-        event.toolName !== "web-search__search" &&
-        event.toolName !== "dashscope-web-search__bailian_web_search"
+        event.toolName !== "lelamp_web_search"
       ) return;
       const runId = event.runId ?? context.runId;
       if (!runId) return;
@@ -271,10 +348,7 @@ plugin.register = (api) => {
       searchRuns.set(runId, state);
     },
     {
-      matcher: [
-        "web-search__search",
-        "dashscope-web-search__bailian_web_search",
-      ],
+      matcher: ["lelamp_web_search"],
       priority: 100,
     },
   );

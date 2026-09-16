@@ -43,6 +43,24 @@ def work_transition_seconds() -> float:
     return max(0.0, float(os.getenv("MOTION_WORK_TRANSITION_SECONDS", "1.5")))
 
 
+def base_yaw_step_degrees() -> float:
+    load_motion_config()
+    return max(1.0, float(os.getenv("MOTION_BASE_YAW_STEP_DEGREES", "30")))
+
+
+def base_yaw_max_offset_degrees() -> float:
+    load_motion_config()
+    return max(0.0, float(os.getenv("MOTION_BASE_YAW_MAX_OFFSET_DEGREES", "60")))
+
+
+def base_yaw_left_sign() -> int:
+    load_motion_config()
+    value = int(os.getenv("MOTION_BASE_YAW_LEFT_SIGN", "1"))
+    if value not in (-1, 1):
+        raise ValueError("MOTION_BASE_YAW_LEFT_SIGN 必须是 1 或 -1")
+    return value
+
+
 def auto_expression_enabled() -> bool:
     load_motion_config()
     return os.getenv("AUTO_EXPRESSION_ENABLED", "1").strip().lower() in {"1", "true", "yes", "on"}

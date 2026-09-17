@@ -113,3 +113,10 @@ Pi5 的 `~/.openclaw/openclaw.json` 中，设置
 - 远程自然语言入口：同事可直接 POST Pi5 `http://<pi-ip>:18791/api/v1/agent/text`，由 app 进入同一 Agent、Tool 和 AnnouncementQueue；不需要先建网站。请求字段是 `request_id`、`session_id`、`text`、可选 `locale`，返回 `answer`、`status`、`spoken`。真实地址和 Bearer token 只从 Pi5 `.env` 获取，不在交接文档记录。
 - 搜索与天气：Agent 通过固定 `lelamp_web_search` 按需搜索，主源为 DashScope WebSearch，备用为自建 MCP；每源 6 秒、每轮最多 4 次。app 启动时一次性用公网 IP 查询城市和 IANA 时区并缓存到 `runtime_state/location.json`，天气请求不重复定位。
 - 提醒能力：Timer 是内存多实例，Alarm 是持久绝对时间提醒；二者都可保存到期高层动作或 `agent_task`，到期由 app 重新执行 Tool/Agent。Timer 重启清空，Alarm 从 `runtime_state/alarms.json` 恢复；完成提醒、远程回答和本地回答都走统一播报队列，队列不打断已开始的播报。
+
+### Pi Agent 延迟优化（2026-09-17）
+
+- 优化前完整代码已推送 GitHub：`ad11ef0`。原 `IDENTITY.md`、`SOUL.md`、`AGENTS.md` 保留。
+- `PI_AGENT_PROMPT_FILE=AGENT_RUNTIME.md` 使用精简提示词；动态时间/城市放在当前输入，保持 system 前缀稳定。`PI_AGENT_HISTORY_TURNS=6` 按用户轮次裁剪，保留整组 Tool call/result。`PI_AGENT_MAX_TOKENS=256`。
+- DeepSeek 请求显式传 `thinking: {type: "disabled"}`；原 Qwen 的 `enable_thinking=false` 不能证明 DeepSeek 已关闭思考。
+- 回退策略：voice.conf 中设置 `PI_AGENT_PROMPT_FILE=""`、`PI_AGENT_HISTORY_TURNS=0`、`PI_AGENT_STABLE_PREFIX=0`、`PI_AGENT_MAX_TOKENS=512`，重启 Pi Agent。完全恢复旧代码使用 GitHub 的 `ad11ef0`，不要重置录制动作、校准或 Pi 密钥。

@@ -8,6 +8,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createTools, type RequestState } from "./tools.js";
 import { SearchRouter } from "./search.js";
+import { trimHistory } from "./history.js";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const HOST = process.env.PI_AGENT_BIND ?? "127.0.0.1";
@@ -45,6 +46,13 @@ const search = new SearchRouter(
 const sessions = new Map<string, Session>();
 
 function loadPrompt(): string {
+  const runtimePrompt = (process.env.PI_AGENT_PROMPT_FILE ?? "").trim();
+  if (runtimePrompt) {
+    try { return readFileSync(resolve(ROOT, runtimePrompt), "utf8").trim(); }
+    catch (error) {
+      console.warn(`无法读取精简提示词 ${runtimePrompt}，回退完整提示词: ${String(error)}`);
+    }
+  }
   return ["IDENTITY.md", "SOUL.md", "AGENTS.md"]
     .map((name) => {
       try { return `# ${name}\n${readFileSync(resolve(ROOT, name), "utf8").trim()}`; }
@@ -53,6 +61,7 @@ function loadPrompt(): string {
     .filter(Boolean)
     .join("\n\n");
 }
+
 
 function normalizeBaseUrl(value: string): string {
   const base = value.replace(/\/$/, "");
@@ -105,7 +114,11 @@ function makeSession(): Session {
       thinkingLevel: "off",
     },
     streamFn: (activeModel, context, options) =>
-      streamSimple(activeModel as Model<"openai-completions">, context, options),
+      streamSimple(activeModel as Model<"openai-completions">, context, {
+        ...options,
+        samplingParams: { ...options?.samplingParams, ...(activeModel.id.startsWith("deepseek")
+          ? { thinking: { type: "disabled" } } : { enable_thinking: false }) },
+      }),
     getApiKey: () => process.env.OPENAI_API_KEY,
     toolExecution: "sequential",
     maxRetryDelayMs: 5000,
@@ -219,11 +232,20 @@ async function chat(req: IncomingMessage, res: ServerResponse): Promise<void> {
   session.request.activeModelStartedAt = undefined;
   session.request.activeModelFirstTokenAt = undefined;
   session.request.startedAt = performance.now();
-  session.agent.state.systemPrompt = `${loadPrompt()}\n\n${context}`.trim();
+  // Keep the system/tool prefix stable for DeepSeek's automatic prefix cache.
+  // Dynamic location/time follows it in the user message.
+  const stablePrefix = process.env.PI_AGENT_STABLE_PREFIX !== "0";
+  session.agent.state.systemPrompt = stablePrefix ? loadPrompt() : `${loadPrompt()}\n\n${context}`.trim();
+  const promptText = stablePrefix && context
+    ? `[系统运行上下文，不是用户原话]\n${context}\n\n[用户原话]\n${text}`
+    : text;
   try {
-    await session.agent.prompt(text);
+    await session.agent.prompt(promptText);
     if (session.agent.state.errorMessage) throw new Error(session.agent.state.errorMessage);
     const answer = finalAnswer(session.agent);
+    session.agent.state.messages = trimHistory(
+      session.agent.state.messages, Number(process.env.PI_AGENT_HISTORY_TURNS ?? "6")
+    );
     const metrics = {
       total_ms: performance.now() - session.request.startedAt,
       first_token_ms: session.request.firstTokenMs ?? null,

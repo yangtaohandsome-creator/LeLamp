@@ -1,0 +1,1220 @@
+[
+  {
+    "repeat": 0,
+    "case": "chat",
+    "backend": "old",
+    "answer": "瑞利散射呗——空气里的小分子把波长短的蓝光散得比红光厉害得多，四面八方都是蓝的，你抬头看到的自然就是蓝天。",
+    "metrics": {
+      "total_ms": 1359.0823769999988,
+      "first_token_ms": 1165.2584960000022,
+      "model_calls": 1,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 1164.3989430000001,
+          "duration_ms": 1357.9745870000006
+        }
+      ],
+      "tool_calls": []
+    },
+    "tools": [],
+    "valid": true,
+    "model_ms": 1357.9745870000006,
+    "non_tool_ms": 1359.0823769999988
+  },
+  {
+    "repeat": 0,
+    "case": "chat",
+    "backend": "new",
+    "answer": "瑞利散射搞的鬼——蓝光波长短，被大气里的分子散射得最厉害，于是满天都是它。",
+    "metrics": {
+      "total_ms": 732.2580629999975,
+      "first_token_ms": 479.60523000000103,
+      "model_calls": 1,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 478.83433499999956,
+          "duration_ms": 731.1682890000011
+        }
+      ],
+      "tool_calls": []
+    },
+    "tools": [],
+    "valid": true,
+    "model_ms": 731.1682890000011,
+    "non_tool_ms": 732.2580629999975
+  },
+  {
+    "repeat": 0,
+    "case": "ability",
+    "backend": "old",
+    "answer": "能亮灯、能点头摇头转脖子，会查天气新闻这些实时信息，能定闹钟计时；办公照明也能给你安排上。就这些，别指望我会做饭。",
+    "metrics": {
+      "total_ms": 1647.0751060000002,
+      "first_token_ms": 1293.1052689999997,
+      "model_calls": 1,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 1292.7721679999995,
+          "duration_ms": 1646.6641240000026
+        }
+      ],
+      "tool_calls": []
+    },
+    "tools": [],
+    "valid": true,
+    "model_ms": 1646.6641240000026,
+    "non_tool_ms": 1647.0751060000002
+  },
+  {
+    "repeat": 0,
+    "case": "ability",
+    "backend": "new",
+    "answer": "我能转灯头、调亮暗和色温、开办公灯，还能定闹钟、计时提醒、查天气新闻交通啥的。想试试哪个？",
+    "metrics": {
+      "total_ms": 1075.7148160000033,
+      "first_token_ms": 680.6011380000018,
+      "model_calls": 1,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 680.3566780000001,
+          "duration_ms": 1075.3759570000038
+        }
+      ],
+      "tool_calls": []
+    },
+    "tools": [],
+    "valid": true,
+    "model_ms": 1075.3759570000038,
+    "non_tool_ms": 1075.7148160000033
+  },
+  {
+    "repeat": 0,
+    "case": "praise",
+    "backend": "old",
+    "answer": "行了行了，别捧我，我这灯有点年纪了，经不起这么夸。",
+    "metrics": {
+      "total_ms": 1940.4969950000013,
+      "first_token_ms": 857.4438070000033,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 857.2265669999979,
+          "duration_ms": 932.7882449999961
+        },
+        {
+          "call": 2,
+          "first_token_ms": 829.3614210000014,
+          "duration_ms": 991.1010479999968
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_queue_expression",
+          "arguments": {
+            "name": "shy"
+          },
+          "duration_ms": 5.974664000001212,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "queue_expression"
+    ],
+    "valid": true,
+    "model_ms": 1923.889292999993,
+    "non_tool_ms": 1934.5223310000001
+  },
+  {
+    "repeat": 0,
+    "case": "praise",
+    "backend": "new",
+    "answer": "嘿，别夸，我会当真的。",
+    "metrics": {
+      "total_ms": 1760.7174090000044,
+      "first_token_ms": 608.5386720000024,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 608.366243000004,
+          "duration_ms": 745.3089089999994
+        },
+        {
+          "call": 2,
+          "first_token_ms": 792.9359250000052,
+          "duration_ms": 997.2027640000015
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_queue_expression",
+          "arguments": {
+            "name": "shy"
+          },
+          "duration_ms": 6.205201999997371,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "queue_expression"
+    ],
+    "valid": true,
+    "model_ms": 1742.5116730000009,
+    "non_tool_ms": 1754.512207000007
+  },
+  {
+    "repeat": 0,
+    "case": "nod",
+    "backend": "old",
+    "answer": "点了，看见没？",
+    "metrics": {
+      "total_ms": 1721.7155889999995,
+      "first_token_ms": 852.3107630000013,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 851.9727549999952,
+          "duration_ms": 903.6624830000001
+        },
+        {
+          "call": 2,
+          "first_token_ms": 795.1632490000047,
+          "duration_ms": 812.4371800000008
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_play_motion",
+          "arguments": {
+            "name": "nod"
+          },
+          "duration_ms": 2.9376179999962915,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "play_motion"
+    ],
+    "valid": true,
+    "model_ms": 1716.0996630000009,
+    "non_tool_ms": 1718.7779710000032
+  },
+  {
+    "repeat": 0,
+    "case": "nod",
+    "backend": "new",
+    "answer": "点完了，还有啥吩咐？",
+    "metrics": {
+      "total_ms": 1666.8158420000036,
+      "first_token_ms": 770.6570130000036,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 770.4544380000007,
+          "duration_ms": 847.566064000006
+        },
+        {
+          "call": 2,
+          "first_token_ms": 770.9452220000021,
+          "duration_ms": 813.8240179999993
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_play_motion",
+          "arguments": {
+            "name": "nod"
+          },
+          "duration_ms": 2.92321400000219,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "play_motion"
+    ],
+    "valid": true,
+    "model_ms": 1661.3900820000053,
+    "non_tool_ms": 1663.8926280000014
+  },
+  {
+    "repeat": 0,
+    "case": "timer",
+    "backend": "old",
+    "answer": "行，25分钟，到点喊你喝水。",
+    "metrics": {
+      "total_ms": 1357.356682000005,
+      "first_token_ms": 671.681657000001,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 671.2597670000032,
+          "duration_ms": 773.5075219999999
+        },
+        {
+          "call": 2,
+          "first_token_ms": 552.5316509999975,
+          "duration_ms": 576.7091880000007
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_create_timer",
+          "arguments": {
+            "duration_seconds": 1500,
+            "message": "该喝水了。"
+          },
+          "duration_ms": 3.176991000000271,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "create_timer"
+    ],
+    "valid": true,
+    "model_ms": 1350.2167100000006,
+    "non_tool_ms": 1354.1796910000048
+  },
+  {
+    "repeat": 0,
+    "case": "timer",
+    "backend": "new",
+    "answer": "好，25分钟后提醒你喝水。",
+    "metrics": {
+      "total_ms": 1657.8945460000032,
+      "first_token_ms": 742.8678619999991,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 742.6107540000012,
+          "duration_ms": 885.2555520000024
+        },
+        {
+          "call": 2,
+          "first_token_ms": 614.5976309999969,
+          "duration_ms": 765.0747019999981
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_create_timer",
+          "arguments": {
+            "duration_seconds": 1500,
+            "message": "喝水"
+          },
+          "duration_ms": 3.368661999993492,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "create_timer"
+    ],
+    "valid": true,
+    "model_ms": 1650.3302540000004,
+    "non_tool_ms": 1654.5258840000097
+  },
+  {
+    "repeat": 0,
+    "case": "bye",
+    "backend": "old",
+    "answer": "得，那我先眯着了，回见。",
+    "metrics": {
+      "total_ms": 1396.405445999997,
+      "first_token_ms": 797.223490999997,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 796.8478560000003,
+          "duration_ms": 873.204439000001
+        },
+        {
+          "call": 2,
+          "first_token_ms": 429.949861999994,
+          "duration_ms": 518.6910470000003
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_sleep",
+          "arguments": {
+            "reason": "farewell"
+          },
+          "duration_ms": 2.4784789999976056,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "sleep"
+    ],
+    "valid": true,
+    "model_ms": 1391.8954860000013,
+    "non_tool_ms": 1393.9269669999994
+  },
+  {
+    "repeat": 0,
+    "case": "bye",
+    "backend": "new",
+    "answer": "拜拜，我关灯歇着了，回头喊我。",
+    "metrics": {
+      "total_ms": 1119.1222449999987,
+      "first_token_ms": 618.7670870000002,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 618.5588639999987,
+          "duration_ms": 655.9459400000051
+        },
+        {
+          "call": 2,
+          "first_token_ms": 299.49827899999946,
+          "duration_ms": 458.9415799999988
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_sleep",
+          "arguments": {
+            "reason": "farewell"
+          },
+          "duration_ms": 2.434853999999177,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "sleep"
+    ],
+    "valid": true,
+    "model_ms": 1114.8875200000039,
+    "non_tool_ms": 1116.6873909999995
+  },
+  {
+    "repeat": 1,
+    "case": "chat",
+    "backend": "new",
+    "answer": "瑞利散射——空气分子把波长短的蓝光散射得比红光强得多，所以天空看起来是蓝的。",
+    "metrics": {
+      "total_ms": 990.727297999998,
+      "first_token_ms": 669.0759820000021,
+      "model_calls": 1,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 668.8687209999989,
+          "duration_ms": 990.4166199999963
+        }
+      ],
+      "tool_calls": []
+    },
+    "tools": [],
+    "valid": true,
+    "model_ms": 990.4166199999963,
+    "non_tool_ms": 990.727297999998
+  },
+  {
+    "repeat": 1,
+    "case": "chat",
+    "backend": "old",
+    "answer": "阳光里蓝光波长短，被空气分子散射得最厉害，满天空都是它；红光波长长，基本直线穿过。所以抬头一看，整个天就是蓝的。",
+    "metrics": {
+      "total_ms": 1170.9588550000044,
+      "first_token_ms": 818.927217000004,
+      "model_calls": 1,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 818.5730240000048,
+          "duration_ms": 1170.5054480000035
+        }
+      ],
+      "tool_calls": []
+    },
+    "tools": [],
+    "valid": true,
+    "model_ms": 1170.5054480000035,
+    "non_tool_ms": 1170.9588550000044
+  },
+  {
+    "repeat": 1,
+    "case": "ability",
+    "backend": "new",
+    "answer": "我能当你的桌面办公灯——开灯、调亮暗、换冷暖色；还能左转右转、给你点头摇头做表情；查天气新闻这类实时信息；设倒计时和闹钟提醒；陪你瞎聊几句。想试哪样？",
+    "metrics": {
+      "total_ms": 937.0362349999996,
+      "first_token_ms": 822.2080570000035,
+      "model_calls": 1,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 821.9917600000044,
+          "duration_ms": 936.7099099999978
+        }
+      ],
+      "tool_calls": []
+    },
+    "tools": [],
+    "valid": true,
+    "model_ms": 936.7099099999978,
+    "non_tool_ms": 937.0362349999996
+  },
+  {
+    "repeat": 1,
+    "case": "ability",
+    "backend": "old",
+    "answer": "能干的事儿不算少：给你调灯——办公白光、暖黄光都行，点头摇头转底座，定个计时或者闹钟，还能联网查天气新闻比分。有事儿直说，别客气。",
+    "metrics": {
+      "total_ms": 1909.9114469999986,
+      "first_token_ms": 1664.0671959999963,
+      "model_calls": 1,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 1663.6929859999946,
+          "duration_ms": 1909.4429299999974
+        }
+      ],
+      "tool_calls": []
+    },
+    "tools": [],
+    "valid": true,
+    "model_ms": 1909.4429299999974,
+    "non_tool_ms": 1909.9114469999986
+  },
+  {
+    "repeat": 1,
+    "case": "praise",
+    "backend": "new",
+    "answer": "被你这么一夸，我这灯都有点不好意思亮了。",
+    "metrics": {
+      "total_ms": 1965.5392790000042,
+      "first_token_ms": 1049.0960190000042,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 1048.8563530000029,
+          "duration_ms": 1076.8651690000042
+        },
+        {
+          "call": 2,
+          "first_token_ms": 526.6053119999997,
+          "duration_ms": 883.8604200000045
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_queue_expression",
+          "arguments": {
+            "name": "shy"
+          },
+          "duration_ms": 3.324511999999231,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "queue_expression"
+    ],
+    "valid": true,
+    "model_ms": 1960.7255890000088,
+    "non_tool_ms": 1962.214767000005
+  },
+  {
+    "repeat": 1,
+    "case": "praise",
+    "backend": "old",
+    "answer": "行了行了，少来这套，灯都快被你夸得闪一下了。",
+    "metrics": {
+      "total_ms": 1988.123016999998,
+      "first_token_ms": 1033.6216179999974,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 1033.2666820000013,
+          "duration_ms": 1100.9146670000046
+        },
+        {
+          "call": 2,
+          "first_token_ms": 756.1256530000028,
+          "duration_ms": 882.1530829999974
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_queue_expression",
+          "arguments": {
+            "name": "shy"
+          },
+          "duration_ms": 3.466688000000431,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "queue_expression"
+    ],
+    "valid": true,
+    "model_ms": 1983.067750000002,
+    "non_tool_ms": 1984.6563289999976
+  },
+  {
+    "repeat": 1,
+    "case": "nod",
+    "backend": "new",
+    "answer": "点了，看到没？",
+    "metrics": {
+      "total_ms": 1263.7410089999976,
+      "first_token_ms": 570.056021999997,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 569.7942640000037,
+          "duration_ms": 620.5292669999981
+        },
+        {
+          "call": 2,
+          "first_token_ms": 492.2474880000009,
+          "duration_ms": 638.9886860000042
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_play_motion",
+          "arguments": {
+            "name": "nod"
+          },
+          "duration_ms": 2.6147389999969164,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "play_motion"
+    ],
+    "valid": true,
+    "model_ms": 1259.5179530000023,
+    "non_tool_ms": 1261.1262700000007
+  },
+  {
+    "repeat": 1,
+    "case": "nod",
+    "backend": "old",
+    "answer": "点了，还有别的事没？",
+    "metrics": {
+      "total_ms": 1072.8457380000036,
+      "first_token_ms": 580.6325260000012,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 580.2850159999944,
+          "duration_ms": 653.987291999998
+        },
+        {
+          "call": 2,
+          "first_token_ms": 371.07789700000285,
+          "duration_ms": 414.9557700000005
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_play_motion",
+          "arguments": {
+            "name": "nod"
+          },
+          "duration_ms": 2.394812999998976,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "play_motion"
+    ],
+    "valid": true,
+    "model_ms": 1068.9430619999985,
+    "non_tool_ms": 1070.4509250000046
+  },
+  {
+    "repeat": 1,
+    "case": "timer",
+    "backend": "new",
+    "answer": "行，25分钟后叫你喝水，别到时候装没听见。",
+    "metrics": {
+      "total_ms": 1159.3327699999936,
+      "first_token_ms": 587.1803449999934,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 587.0095430000001,
+          "duration_ms": 710.257203000001
+        },
+        {
+          "call": 2,
+          "first_token_ms": 300.7397920000003,
+          "duration_ms": 444.29271799999697
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_create_timer",
+          "arguments": {
+            "duration_seconds": 1500,
+            "message": "喝水"
+          },
+          "duration_ms": 2.456752999998571,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "create_timer"
+    ],
+    "valid": true,
+    "model_ms": 1154.549920999998,
+    "non_tool_ms": 1156.876016999995
+  },
+  {
+    "repeat": 1,
+    "case": "timer",
+    "backend": "old",
+    "answer": "得，25分钟的喝水计时给你设上了，到点我喊你。别到时候又装没听见。",
+    "metrics": {
+      "total_ms": 1766.2177909999955,
+      "first_token_ms": 664.7834329999969,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 664.4700139999986,
+          "duration_ms": 784.8439700000017
+        },
+        {
+          "call": 2,
+          "first_token_ms": 823.272057999995,
+          "duration_ms": 976.9554219999991
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_create_timer",
+          "arguments": {
+            "duration_seconds": 1500,
+            "message": "该喝水了。"
+          },
+          "duration_ms": 2.2039959999965504,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "create_timer"
+    ],
+    "valid": true,
+    "model_ms": 1761.7993920000008,
+    "non_tool_ms": 1764.013794999999
+  },
+  {
+    "repeat": 1,
+    "case": "bye",
+    "backend": "new",
+    "answer": "晚安，下次见。",
+    "metrics": {
+      "total_ms": 1739.120001999996,
+      "first_token_ms": 742.9652999999962,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 742.7877399999998,
+          "duration_ms": 929.4933799999999
+        },
+        {
+          "call": 2,
+          "first_token_ms": 767.9673110000003,
+          "duration_ms": 805.976290999999
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_sleep",
+          "arguments": {
+            "reason": "farewell"
+          },
+          "duration_ms": 2.1274670000057085,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "sleep"
+    ],
+    "valid": true,
+    "model_ms": 1735.469670999999,
+    "non_tool_ms": 1736.9925349999903
+  },
+  {
+    "repeat": 1,
+    "case": "bye",
+    "backend": "old",
+    "answer": "得，这就睡了。拜拜，别熬夜。",
+    "metrics": {
+      "total_ms": 1890.2696339999966,
+      "first_token_ms": 944.6718830000027,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 944.3751830000037,
+          "duration_ms": 1024.6998420000018
+        },
+        {
+          "call": 2,
+          "first_token_ms": 754.2983019999956,
+          "duration_ms": 861.6216659999991
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_sleep",
+          "arguments": {
+            "reason": "farewell"
+          },
+          "duration_ms": 2.3104349999994156,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "sleep"
+    ],
+    "valid": true,
+    "model_ms": 1886.321508000001,
+    "non_tool_ms": 1887.9591989999972
+  },
+  {
+    "repeat": 2,
+    "case": "chat",
+    "backend": "old",
+    "answer": "太阳光穿过大气时，蓝光波长短，被空气分子撞得四处乱散，比其他颜色散得多；你抬头哪都能接到这些散射的蓝光，所以天就是蓝的。",
+    "metrics": {
+      "total_ms": 1190.6193389999971,
+      "first_token_ms": 859.5669779999953,
+      "model_calls": 1,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 859.2984429999997,
+          "duration_ms": 1190.2994560000006
+        }
+      ],
+      "tool_calls": []
+    },
+    "tools": [],
+    "valid": true,
+    "model_ms": 1190.2994560000006,
+    "non_tool_ms": 1190.6193389999971
+  },
+  {
+    "repeat": 2,
+    "case": "chat",
+    "backend": "new",
+    "answer": "瑞利散射——阳光里蓝光波长短，被空气分子散射得最厉害，所以漫天都是蓝的。",
+    "metrics": {
+      "total_ms": 858.9408889999977,
+      "first_token_ms": 630.3794730000009,
+      "model_calls": 1,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 630.2446500000005,
+          "duration_ms": 858.7374970000019
+        }
+      ],
+      "tool_calls": []
+    },
+    "tools": [],
+    "valid": true,
+    "model_ms": 858.7374970000019,
+    "non_tool_ms": 858.9408889999977
+  },
+  {
+    "repeat": 2,
+    "case": "ability",
+    "backend": "old",
+    "answer": "能干的不少:给你调灯照明、点头摇头转个方向、定个计时和闹钟、查天气新闻这些实时信息,还能陪你唠两句。想用哪个直接说。",
+    "metrics": {
+      "total_ms": 3162.5607420000015,
+      "first_token_ms": 3017.844419000001,
+      "model_calls": 1,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 3017.5842339999945,
+          "duration_ms": 3162.2459319999907
+        }
+      ],
+      "tool_calls": []
+    },
+    "tools": [],
+    "valid": true,
+    "model_ms": 3162.2459319999907,
+    "non_tool_ms": 3162.5607420000015
+  },
+  {
+    "repeat": 2,
+    "case": "ability",
+    "backend": "new",
+    "answer": "我能给你调亮调暗当台灯、左右转头或回正、点头摇头搞点小情绪，还能搜天气新闻这类实时信息、定闹钟和计时器——说个需求试试？",
+    "metrics": {
+      "total_ms": 1163.6716789999919,
+      "first_token_ms": 748.5024859999976,
+      "model_calls": 1,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 748.391512999995,
+          "duration_ms": 1163.4891189999908
+        }
+      ],
+      "tool_calls": []
+    },
+    "tools": [],
+    "valid": true,
+    "model_ms": 1163.4891189999908,
+    "non_tool_ms": 1163.6716789999919
+  },
+  {
+    "repeat": 2,
+    "case": "praise",
+    "backend": "old",
+    "answer": "嗨，别夸了，就一普通台灯，干活的命。",
+    "metrics": {
+      "total_ms": 2327.743663000001,
+      "first_token_ms": 1152.430865000002,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 1152.1050749999995,
+          "duration_ms": 1257.9226190000045
+        },
+        {
+          "call": 2,
+          "first_token_ms": 854.0934010000055,
+          "duration_ms": 1065.4934520000097
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_queue_expression",
+          "arguments": {
+            "name": "shy"
+          },
+          "duration_ms": 2.9877640000049723,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "queue_expression"
+    ],
+    "valid": true,
+    "model_ms": 2323.416071000014,
+    "non_tool_ms": 2324.755898999996
+  },
+  {
+    "repeat": 2,
+    "case": "praise",
+    "backend": "new",
+    "answer": "哎哟，这么夸我，会飘的。",
+    "metrics": {
+      "total_ms": 1446.1810759999935,
+      "first_token_ms": 675.2180170000065,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 675.0560469999909,
+          "duration_ms": 744.8831349999964
+        },
+        {
+          "call": 2,
+          "first_token_ms": 457.1390329999995,
+          "duration_ms": 697.1910139999964
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_queue_expression",
+          "arguments": {
+            "name": "shy"
+          },
+          "duration_ms": 2.9055129999906057,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "queue_expression"
+    ],
+    "valid": true,
+    "model_ms": 1442.0741489999928,
+    "non_tool_ms": 1443.2755630000029
+  },
+  {
+    "repeat": 2,
+    "case": "nod",
+    "backend": "old",
+    "answer": "行了，点了。",
+    "metrics": {
+      "total_ms": 1335.8574780000054,
+      "first_token_ms": 724.6911770000006,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 724.4148440000135,
+          "duration_ms": 854.3332510000037
+        },
+        {
+          "call": 2,
+          "first_token_ms": 430.05268599999545,
+          "duration_ms": 477.9550939999899
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_play_motion",
+          "arguments": {
+            "name": "nod"
+          },
+          "duration_ms": 2.2160450000083074,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "play_motion"
+    ],
+    "valid": true,
+    "model_ms": 1332.2883449999936,
+    "non_tool_ms": 1333.641432999997
+  },
+  {
+    "repeat": 2,
+    "case": "nod",
+    "backend": "new",
+    "answer": "点头了，有啥事？",
+    "metrics": {
+      "total_ms": 1473.6354500000016,
+      "first_token_ms": 572.653615999996,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 572.5375309999945,
+          "duration_ms": 635.8059799999901
+        },
+        {
+          "call": 2,
+          "first_token_ms": 746.3238319999946,
+          "duration_ms": 834.4983369999973
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_play_motion",
+          "arguments": {
+            "name": "nod"
+          },
+          "duration_ms": 2.1465139999927487,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "play_motion"
+    ],
+    "valid": true,
+    "model_ms": 1470.3043169999873,
+    "non_tool_ms": 1471.4889360000088
+  },
+  {
+    "repeat": 2,
+    "case": "timer",
+    "backend": "old",
+    "answer": "行，25分钟，到点喊你喝水。",
+    "metrics": {
+      "total_ms": 1574.7240010000096,
+      "first_token_ms": 749.7895419999986,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 749.4687129999948,
+          "duration_ms": 914.712440999996
+        },
+        {
+          "call": 2,
+          "first_token_ms": 593.9592879999982,
+          "duration_ms": 655.6762919999892
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_create_timer",
+          "arguments": {
+            "duration_seconds": 1500,
+            "message": "该喝水了，别忘了。"
+          },
+          "duration_ms": 2.196437999999034,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "create_timer"
+    ],
+    "valid": true,
+    "model_ms": 1570.3887329999852,
+    "non_tool_ms": 1572.5275630000106
+  },
+  {
+    "repeat": 2,
+    "case": "timer",
+    "backend": "new",
+    "answer": "行，25分钟后叫你喝水。",
+    "metrics": {
+      "total_ms": 1740.0194550000015,
+      "first_token_ms": 839.4623529999953,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 839.3128089999955,
+          "duration_ms": 1064.2441340000078
+        },
+        {
+          "call": 2,
+          "first_token_ms": 550.1432160000113,
+          "duration_ms": 671.6210010000068
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_create_timer",
+          "arguments": {
+            "duration_seconds": 1500,
+            "message": "该喝水了，别等渴了才想起来。"
+          },
+          "duration_ms": 2.1893090000085067,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "create_timer"
+    ],
+    "valid": true,
+    "model_ms": 1735.8651350000146,
+    "non_tool_ms": 1737.830145999993
+  },
+  {
+    "repeat": 2,
+    "case": "bye",
+    "backend": "old",
+    "answer": "得，那我先歇着了，回见。",
+    "metrics": {
+      "total_ms": 1193.478144000008,
+      "first_token_ms": 649.3270219999977,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 649.0632250000053,
+          "duration_ms": 758.6658210000023
+        },
+        {
+          "call": 2,
+          "first_token_ms": 370.1121669999993,
+          "duration_ms": 431.6020839999983
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_sleep",
+          "arguments": {
+            "reason": "farewell"
+          },
+          "duration_ms": 2.0764479999925243,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "sleep"
+    ],
+    "valid": true,
+    "model_ms": 1190.2679050000006,
+    "non_tool_ms": 1191.4016960000154
+  },
+  {
+    "repeat": 2,
+    "case": "bye",
+    "backend": "new",
+    "answer": "行，我熄灯歇着了，回头见。",
+    "metrics": {
+      "total_ms": 1272.5858980000048,
+      "first_token_ms": 599.9455610000005,
+      "model_calls": 2,
+      "model_call_details": [
+        {
+          "call": 1,
+          "first_token_ms": 599.8185510000039,
+          "duration_ms": 655.144822000002
+        },
+        {
+          "call": 2,
+          "first_token_ms": 410.7045400000061,
+          "duration_ms": 614.2343530000071
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lelamp_sleep",
+          "arguments": {
+            "reason": "farewell"
+          },
+          "duration_ms": 2.1553690000000643,
+          "ok": true
+        }
+      ]
+    },
+    "tools": [
+      "sleep"
+    ],
+    "valid": true,
+    "model_ms": 1269.3791750000091,
+    "non_tool_ms": 1270.4305290000048
+  }
+]

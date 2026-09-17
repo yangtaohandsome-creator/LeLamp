@@ -36,7 +36,7 @@ async def ask_agent(text: str, session_id: str) -> str:
             model_calls = metrics.get("model_call_details", [])
             tools = metrics.get("tool_calls", [])
             model_summary = ", ".join(
-                f"#{item.get('call')} 首字 {float(item.get('first_token_ms', 0)) / 1000:.2f}s/完整 {float(item.get('duration_ms', 0)) / 1000:.2f}s"
+                f"#{item.get('call')} 首字 {float(item.get('first_token_ms') or 0) / 1000:.2f}s/完整 {float(item.get('duration_ms', 0)) / 1000:.2f}s"
                 for item in model_calls if isinstance(item, dict)
             )
             tool_summary = ", ".join(

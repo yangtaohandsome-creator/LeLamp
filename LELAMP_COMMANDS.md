@@ -620,3 +620,16 @@ nohup uv run --no-sync -m lelamp.app >/tmp/lelamp-app.log 2>&1 &
 ```
 
 候选选择格式示例：`WAKE-B、TIMER-A、ALARM-C`。试听命令只临时播放，不会修改 `sound.conf` 或启用正式提示音。
+
+### Pi Agent 优化参数与回退
+
+`voice.conf` 当前设置：
+
+```ini
+PI_AGENT_PROMPT_FILE=AGENT_RUNTIME.md
+PI_AGENT_HISTORY_TURNS=6
+PI_AGENT_STABLE_PREFIX=1
+PI_AGENT_MAX_TOKENS=256
+```
+
+恢复原提示词、无限历史和旧上下文布局，将上述值分别改为 `""`、`0`、`0`、`512` 后重启 Pi Agent。优化前完整代码的 GitHub 提交为 `ad11ef0`。本次优化不覆盖用户录制动作或校准。

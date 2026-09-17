@@ -8,6 +8,7 @@ from aiohttp import web
 
 
 CALLS: list[dict] = []
+WORK_LIGHT = False
 
 
 def outcome(name: str, body: dict) -> dict:
@@ -22,7 +23,7 @@ def outcome(name: str, body: dict) -> dict:
             "current_mode": "normal", "motion_active": False,
             "tracking": False, "speaking": False,
             "mechanically_asleep": False, "base_heading_degrees": 0,
-            "base_heading_position": "front", "work_light": False,
+            "base_heading_position": "front", "work_light": WORK_LIGHT,
         }
     elif name == "create_timer":
         data = {"timer_id": "timer-1", "duration": body.get("duration_seconds"), "remaining": body.get("duration_seconds"), "status": "running", "message": body.get("message", ""), "callback_info": {}}
@@ -50,6 +51,8 @@ async def execute(request: web.Request) -> web.Response:
 
 
 async def reset(_request: web.Request) -> web.Response:
+    global WORK_LIGHT
+    WORK_LIGHT = _request.query.get("work_light") == "1"
     CALLS.clear()
     return web.json_response({"ok": True})
 

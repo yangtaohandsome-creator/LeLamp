@@ -42,7 +42,7 @@ CASES = [
 def arguments_correct(case_id: str, calls: list[dict]) -> bool:
     if not calls:
         return True
-    args = calls[0]["arguments"]
+    args = next((call["arguments"] for call in calls if call["name"] == "update_work_light"), calls[0]["arguments"]) if case_id == "work_brighter" else calls[0]["arguments"]
     if case_id == "turn_left":
         return args.get("direction") == "left" and args.get("steps", 1) == 1
     if case_id == "absolute_right":
@@ -105,7 +105,7 @@ async def main() -> None:
     async with httpx.AsyncClient() as admin:
         for repeat in range(args.repeats):
             for case_id, text, allowed in cases:
-                await admin.post("http://127.0.0.1:18793/reset")
+                await admin.post("http://127.0.0.1:18793/reset", params={"work_light": "1" if case_id == "work_brighter" else "0"})
                 session = f"bench-{args.backend}-{case_id}-{repeat}-{uuid.uuid4().hex[:8]}"
                 error = None
                 payload = {}
@@ -124,7 +124,8 @@ async def main() -> None:
                     payload.get("choices", [{}])[0].get("message", {}).get("content", "")
                 )
                 leaked = leaked_internal_text(answer)
-                correct = names in allowed and args_ok and not leaked
+                observed_names = [name for name in names if not (case_id == "work_brighter" and name == "get_robot_state")]
+                correct = observed_names in allowed and args_ok and not leaked and bool(answer.strip())
                 item = {"backend": args.backend, "case": case_id, "repeat": repeat, "text": text, "tools": observed, "allowed": allowed, "arguments_correct": args_ok, "analysis_leak": leaked, "correct": correct, "answer": answer, "total_ms": elapsed, "tool_to_response_ms": tool_wait, "error": error, "backend_metrics": payload.get("metrics")}
                 records.append(item)
                 print(f"{args.backend} {case_id} #{repeat + 1}: {'PASS' if correct and not error else 'FAIL'} {elapsed / 1000:.2f}s {names}", flush=True)

@@ -11,6 +11,7 @@ from typing import Callable
 
 from .audio import scale_pcm_s16le
 from .config import env_float
+from .playback import PlaybackControl, SpeechInterrupted
 
 
 class EdgeTtsError(RuntimeError):
@@ -59,11 +60,12 @@ class EdgeSpeechClient:
         self,
         text: str,
         on_playback_start: Callable[[], None] | None = None,
+        control: PlaybackControl | None = None,
     ) -> tuple[float, float, float]:
         if self._closed:
             raise EdgeTtsError("Edge TTS 已关闭")
         future = asyncio.run_coroutine_threadsafe(
-            self._speak(text, on_playback_start), self._loop
+            self._speak(text, on_playback_start, control), self._loop
         )
         try:
             return future.result(timeout=120)
@@ -141,13 +143,17 @@ class EdgeSpeechClient:
             raise EdgeTtsNotReady("Edge TTS 预连接不可用")
         return self._websocket
 
-    async def _speak(self, text, on_playback_start):
+    async def _speak(self, text, on_playback_start, control):
         websocket = await self._take_ready_connection()
         retries = max(0, int(os.getenv("EDGE_TTS_RETRY_COUNT", "1")))
         try:
             for attempt in range(retries + 1):
                 try:
-                    return await self._synthesize(websocket, text, on_playback_start)
+                    return await self._synthesize(
+                        websocket, text, on_playback_start, control
+                    )
+                except SpeechInterrupted:
+                    raise
                 except Exception:
                     await self._discard_connection()
                     if attempt >= retries:
@@ -156,7 +162,7 @@ class EdgeSpeechClient:
                         self._connect(),
                         timeout=env_float("EDGE_TTS_RETRY_TIMEOUT_SECONDS", 3.0),
                     )
-        except EdgeTtsError:
+        except (EdgeTtsError, SpeechInterrupted):
             raise
         except Exception as exc:
             raise EdgeTtsError(f"Edge TTS 合成失败: {exc}") from exc
@@ -165,7 +171,7 @@ class EdgeSpeechClient:
             if not self._closed:
                 self._connect_task = asyncio.create_task(self._connect())
 
-    async def _synthesize(self, websocket, text, on_playback_start):
+    async def _synthesize(self, websocket, text, on_playback_start, control):
         import aiohttp
         from edge_tts.communicate import (
             connect_id,
@@ -222,11 +228,15 @@ class EdgeSpeechClient:
         volume_percent = env_float("APLAY_VOLUME_PERCENT", 100.0)
         if not 0 < volume_percent <= 200:
             raise ValueError("APLAY_VOLUME_PERCENT 必须在 1～200 之间")
+        if control is not None:
+            control.format(24000, 1)
 
         async def pump_pcm():
             nonlocal first_pcm_at, pcm_bytes, on_playback_start
             assert decoder.stdout is not None and player.stdin is not None
             while True:
+                if control is not None and control.cancelled:
+                    raise SpeechInterrupted
                 pcm = await decoder.stdout.read(4096)
                 if not pcm:
                     break
@@ -236,14 +246,38 @@ class EdgeSpeechClient:
                         callback, on_playback_start = on_playback_start, None
                         callback()
                 pcm = scale_pcm_s16le(pcm, volume_percent)
+                if control is not None:
+                    control.pcm(pcm, 24000, 1)
                 player.stdin.write(pcm)
                 await player.stdin.drain()
                 pcm_bytes += len(pcm)
 
+        synthesis_task = asyncio.current_task()
+
+        async def watch_cancel():
+            if control is None:
+                return
+            while not control.cancelled:
+                await asyncio.sleep(0.02)
+            for process in (decoder, player):
+                if process.returncode is None:
+                    process.kill()
+            # Do not wait for an Edge WebSocket close handshake during an
+            # active synthesis turn.  Some servers leave it pending until the
+            # turn ends, which deadlocks barge-in after audio has already
+            # stopped.  Cancel the owning synthesis task; its finally block
+            # closes the connection and translates this expected path to
+            # SpeechInterrupted.
+            if synthesis_task is not None and not synthesis_task.done():
+                synthesis_task.cancel()
+
         pump_task = asyncio.create_task(pump_pcm())
+        cancel_task = asyncio.create_task(watch_cancel())
         try:
             assert decoder.stdin is not None
             async for received in websocket:
+                if control is not None and control.cancelled:
+                    raise SpeechInterrupted
                 if received.type == aiohttp.WSMsgType.BINARY:
                     header_length = int.from_bytes(received.data[:2], "big")
                     headers, data = get_headers_and_data(received.data, header_length)
@@ -278,10 +312,15 @@ class EdgeSpeechClient:
         finally:
             if not pump_task.done():
                 pump_task.cancel()
+            if not cancel_task.done():
+                cancel_task.cancel()
+            await asyncio.gather(pump_task, cancel_task, return_exceptions=True)
             for process in (decoder, player):
                 if process.returncode is None:
                     process.kill()
                     await process.wait()
+            if control is not None and control.cancelled:
+                raise SpeechInterrupted
         first_pcm_at = first_pcm_at or started
         first_mp3_at = first_mp3_at or started
         last_mp3_at = last_mp3_at or first_mp3_at
@@ -296,9 +335,20 @@ class EdgeSpeechClient:
         self._websocket = None
         self._session = None
         if websocket is not None and not websocket.closed:
-            await websocket.close()
+            try:
+                await asyncio.wait_for(websocket.close(), timeout=0.5)
+            except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
+                # A cancelled synthesis must never wait for the remote peer's
+                # close handshake.  Closing the underlying response is local
+                # and immediate; the next request creates a fresh connection.
+                response = getattr(websocket, "_response", None)
+                if response is not None:
+                    response.close()
         if session is not None and not session.closed:
-            await session.close()
+            try:
+                await asyncio.wait_for(session.close(), timeout=0.5)
+            except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
+                pass
 
     async def _close_async(self) -> None:
         task = self._connect_task

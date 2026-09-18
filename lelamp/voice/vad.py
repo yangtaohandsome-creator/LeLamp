@@ -11,7 +11,11 @@ from .config import SAMPLE_RATE, BLOCK_SAMPLES, env_float
 class CaptureInterrupted(Exception):
     """Raised when an app notification needs the microphone before speech starts."""
 
-def make_vad() -> sherpa_onnx.VoiceActivityDetector | None:
+def make_vad(
+    *,
+    threshold: float | None = None,
+    min_speech_seconds: float | None = None,
+) -> sherpa_onnx.VoiceActivityDetector | None:
     if os.getenv("VAD_MODE", "silero").lower() != "silero":
         return None
     import sherpa_onnx
@@ -21,12 +25,16 @@ def make_vad() -> sherpa_onnx.VoiceActivityDetector | None:
         return None
     config = sherpa_onnx.VadModelConfig()
     config.silero_vad.model = str(model)
-    config.silero_vad.threshold = env_float("VAD_MODEL_THRESHOLD", 0.25)
+    config.silero_vad.threshold = (
+        env_float("VAD_MODEL_THRESHOLD", 0.25)
+        if threshold is None else threshold
+    )
     config.silero_vad.min_silence_duration = env_float(
         "VAD_MODEL_MIN_SILENCE_SECONDS", 1.5
     )
-    config.silero_vad.min_speech_duration = env_float(
-        "VAD_MODEL_MIN_SPEECH_SECONDS", 0.05
+    config.silero_vad.min_speech_duration = (
+        env_float("VAD_MODEL_MIN_SPEECH_SECONDS", 0.05)
+        if min_speech_seconds is None else min_speech_seconds
     )
     config.silero_vad.max_speech_duration = env_float("VAD_MAX_SECONDS", 15.0)
     config.sample_rate = SAMPLE_RATE

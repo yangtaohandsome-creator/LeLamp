@@ -16,6 +16,10 @@ class AnnouncementPriority(IntEnum):
     NOTIFICATION = 20
 
 
+class AnnouncementInterrupted(Exception):
+    """The active item was intentionally stopped for a user utterance."""
+
+
 @dataclass(frozen=True)
 class Announcement:
     announcement_id: str
@@ -35,6 +39,7 @@ class AnnouncementResult:
     success: bool
     metrics: tuple[float, float, float] = (0.0, 0.0, 0.0)
     error: str | None = None
+    interrupted: bool = False
 
 
 @dataclass(frozen=True)
@@ -181,6 +186,24 @@ class AnnouncementQueue:
                 spoken_text, metrics = await self._processor(
                     [entry.announcement for entry in entries]
                 )
+            except AnnouncementInterrupted:
+                for entry in entries:
+                    if not entry.future.done():
+                        entry.future.set_result(AnnouncementResult(
+                            announcement_id=entry.announcement.announcement_id,
+                            text=entry.announcement.text,
+                            success=True,
+                            interrupted=True,
+                        ))
+                async with self._condition:
+                    # A live user utterance owns the microphone now. Preserve
+                    # queued notifications for the next safe playback window.
+                    self._playback_allowed = False
+                    self._pause_when_empty = False
+                    if not self._heap:
+                        self._interrupt.clear()
+                    self._paused.set()
+                    self._condition.notify_all()
             except asyncio.CancelledError:
                 for entry in entries:
                     self._finish_failed(entry, "播报已取消")

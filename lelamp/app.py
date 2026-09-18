@@ -17,7 +17,11 @@ from .voice.kws import make_spotter
 from .voice.vad import CaptureInterrupted, capture_utterance
 from .voice.asr import transcribe
 from .voice.tts import close_tts, preconnect_tts, speak
-from .voice.announcement import Announcement, AnnouncementPriority, AnnouncementQueue
+from .voice.playback import PlaybackControl, SpeechInterrupted
+from .voice.barge_in import BargeInController, BargeInUtterance, strip_stop_prefix
+from .voice.announcement import (
+    Announcement, AnnouncementInterrupted, AnnouncementPriority, AnnouncementQueue,
+)
 from .agent import AgentError, ask_agent, clear_session
 from .control import ControlServer
 from .remote_text import RemoteTextServer
@@ -64,19 +68,34 @@ async def run_voice(app) -> None:
     print("Voice assistant ready. Say: 小灯", flush=True)
     pending_noise_levels: list[float] = []
     conversation_deadline: float | None = None
+    pending_barge_in: BargeInUtterance | None = None
+    sleep_after_barge_in = False
 
     async def play_pending_announcements(*, restore_light: bool = True) -> None:
         """Give the sole TTS consumer a safe window with capture stopped."""
         nonlocal capture, stream, pending_noise_levels, conversation_deadline
+        nonlocal pending_barge_in
         if not app.announcement_pending():
             return
-        started = time.monotonic()
         if capture is not None:
             stop_capture(capture)
             capture = None
         await app.drain_announcements()
+        # One simple rule: every completed or interrupted announcement opens a
+        # fresh idle window.  Old elapsed time is irrelevant; only 15 seconds
+        # after the latest TTS end can park the lamp.
         if conversation_deadline is not None:
-            conversation_deadline += time.monotonic() - started
+            conversation_deadline = time.monotonic() + env_float(
+                "CONVERSATION_IDLE_SECONDS", 15.0
+            )
+        interrupted = app.take_barge_in_utterance()
+        if interrupted is not None:
+            pending_barge_in = interrupted
+            print(
+                f"TTS cancelled | listening resumed | trigger={interrupted.trigger}",
+                flush=True,
+            )
+            return
         capture = start_capture()
         pending_noise_levels = await asyncio.to_thread(
             measure_noise, lambda: read_capture_block(capture),
@@ -91,6 +110,7 @@ async def run_voice(app) -> None:
         nonlocal capture, conversation_active, conversation_deadline
         nonlocal conversation_id, conversation_turns
         nonlocal stream, pending_noise_levels
+        nonlocal sleep_after_barge_in, pending_barge_in
         if capture is not None:
             stop_capture(capture)
             capture = None
@@ -109,6 +129,8 @@ async def run_voice(app) -> None:
             await clear_session(conversation_id)
         conversation_id = None
         conversation_turns = 0
+        sleep_after_barge_in = False
+        pending_barge_in = None
         pending_noise_levels = []
         stream = spotter.create_stream()
         capture = start_capture()
@@ -118,6 +140,13 @@ async def run_voice(app) -> None:
 
     try:
         while True:
+            if pending_barge_in is not None and not conversation_active:
+                conversation_active = True
+                conversation_id = uuid.uuid4().hex
+                conversation_turns = 0
+                conversation_deadline = time.monotonic() + env_float(
+                    "CONVERSATION_IDLE_SECONDS", 15.0
+                )
             if not conversation_active:
                 stereo = await asyncio.to_thread(read_capture_stereo_block, capture)
                 if app.announcement_pending():
@@ -166,34 +195,50 @@ async def run_voice(app) -> None:
             is_first_turn = conversation_turns == 0
             assert conversation_deadline is not None
             timeout = conversation_deadline - time.monotonic()
-            if timeout <= 0:
+            # A detected interruption already owns the next turn.  Never park
+            # the mechanics before transcribing it, even if the previous idle
+            # deadline elapsed while the assistant was speaking.
+            if timeout <= 0 and pending_barge_in is None:
                 await enter_sleep_waiting("会话已结束，请说“小灯”重新唤醒")
                 continue
             prompt = "Listening..." if is_first_turn else "连续对话中，请直接说话..."
-            try:
-                utterance = await asyncio.to_thread(
-                    capture_utterance, lambda: read_capture_block(capture),
-                    timeout,
-                    prompt,
-                    initial_noise_levels=pending_noise_levels,
-                    interrupt_before_speech=app.announcement_interrupted,
-                    on_speech_start=app.local_speech_started,
+            barge_trigger = None
+            if pending_barge_in is not None:
+                utterance = pending_barge_in.audio
+                barge_trigger = pending_barge_in.trigger
+                pending_barge_in = None
+                app.local_speech_started()
+                print(
+                    f"BARGE-IN CAPTURE | 时长: {len(utterance) / SAMPLE_RATE:.2f} 秒",
+                    flush=True,
                 )
-            except CaptureInterrupted:
-                await play_pending_announcements()
-                continue
-            pending_noise_levels = []
-            listen_seconds = time.perf_counter() - listen_started
-            print(f"LISTEN END | 延迟: {listen_seconds:.2f} 秒", flush=True)
+            else:
+                try:
+                    utterance = await asyncio.to_thread(
+                        capture_utterance, lambda: read_capture_block(capture),
+                        timeout,
+                        prompt,
+                        initial_noise_levels=pending_noise_levels,
+                        interrupt_before_speech=app.announcement_interrupted,
+                        on_speech_start=app.local_speech_started,
+                    )
+                except CaptureInterrupted:
+                    await play_pending_announcements()
+                    continue
+                pending_noise_levels = []
+                listen_seconds = time.perf_counter() - listen_started
+                print(f"LISTEN END | 延迟: {listen_seconds:.2f} 秒", flush=True)
             if utterance is None:
                 app.local_speech_finished()
                 message = ("未检测到问题，继续等待“小灯”唤醒" if is_first_turn
                            else "会话已结束，请说“小灯”重新唤醒")
                 await enter_sleep_waiting(message)
                 continue
-            # Release the capture clock before playback and discard buffered audio.
-            stop_capture(capture)
-            capture = None
+            # Release the normal capture clock before playback. Barge-in audio
+            # already came from the duplex AEC session, so capture is None.
+            if capture is not None:
+                stop_capture(capture)
+                capture = None
             valid_text_received = False
             shutdown_requested = False
             reply_handle = None
@@ -204,7 +249,25 @@ async def run_voice(app) -> None:
                 asr_seconds = time.perf_counter() - asr_started
                 print(f"ASR: {text}", flush=True)
                 print(f"ASR 延迟: {asr_seconds:.2f} 秒", flush=True)
-                if has_meaningful_text(text):
+                # A real utterance during the farewell cancels the deferred
+                # sleep.  Empty ASR or an ASR failure leaves it armed.
+                if sleep_after_barge_in and has_meaningful_text(text):
+                    sleep_after_barge_in = False
+                control_only = False
+                if barge_trigger == "keyword":
+                    remaining, removed = strip_stop_prefix(text)
+                    if removed and remaining.strip("，,。！？!?、 ") in {
+                        "", "一下", "吧", "好了", "好啦",
+                    }:
+                        control_only = True
+                    elif removed:
+                        text = remaining
+                await app.restore_after_barge_in()
+                if control_only:
+                    valid_text_received = True
+                    print("BARGE-IN CONTROL: 已停止播报，继续监听", flush=True)
+                    app.light_state("listening")
+                elif has_meaningful_text(text):
                     valid_text_received = True
                     llm_started = time.perf_counter()
                     assert conversation_id is not None
@@ -230,6 +293,8 @@ async def run_voice(app) -> None:
                     spoken = await reply_handle.wait()
                     if not spoken.success:
                         raise RuntimeError(f"播报失败: {spoken.error}")
+                    if spoken.interrupted:
+                        print("播报已被用户打断。", flush=True)
                     tts_first_seconds, tts_stream_seconds, playback_seconds = spoken.metrics
                     print(f"LLM: {answer}", flush=True)
                     print(f"LLM 延迟: {llm_seconds:.2f} 秒", flush=True)
@@ -248,8 +313,24 @@ async def run_voice(app) -> None:
                 print(f"Voice turn failed: {exc}", file=sys.stderr, flush=True)
             finally:
                 app.local_speech_finished()
+            if sleep_after_barge_in:
+                sleep_after_barge_in = False
+                await enter_sleep_waiting(
+                    "已进入睡眠，请说“小灯”重新唤醒", force_sleep=True
+                )
+                continue
             if shutdown_requested:
+                if pending_barge_in is not None:
+                    # Farewell was interrupted.  Transcribe that one captured
+                    # utterance before making the final sleep decision.
+                    sleep_after_barge_in = True
+                    continue
                 await enter_sleep_waiting("已进入睡眠，请说“小灯”重新唤醒", force_sleep=True)
+                continue
+
+            if pending_barge_in is not None:
+                # Process the captured interruption before any older queued
+                # notification or a newly opened ALSA capture.
                 continue
 
             if app.announcement_pending():
@@ -310,6 +391,9 @@ class LampApp:
         self._agent_turn_text: str | None = None
         import threading
         self._local_speech_active = threading.Event()
+        self.barge_in = BargeInController()
+        self._barge_in_utterances: deque[BargeInUtterance] = deque()
+        self._barge_restore_needed = False
         self.announcements = AnnouncementQueue(self._process_announcement_batch)
         self.timers = TimerManager(self._on_timer_complete)
         self.alarms = AlarmManager(self._on_alarm_complete)
@@ -318,6 +402,7 @@ class LampApp:
     async def start(self) -> None:
         await self.announcements.start()
         await self.alarms.start()
+        await asyncio.to_thread(self.barge_in.prepare)
 
     async def _on_timer_complete(self, timer: TimerSnapshot) -> None:
         """Turn a hardware-neutral Timer completion into one speech event."""
@@ -390,6 +475,9 @@ class LampApp:
 
     async def drain_announcements(self) -> None:
         await self.announcements.drain_and_pause()
+
+    def take_barge_in_utterance(self) -> BargeInUtterance | None:
+        return self._barge_in_utterances.popleft() if self._barge_in_utterances else None
 
     def local_speech_started(self) -> None:
         self._local_speech_active.set()
@@ -503,6 +591,16 @@ class LampApp:
         except Exception as exc:
             print(f"灯光状态 {name} 失败: {exc}", file=sys.stderr, flush=True)
 
+    def light_interrupted(self) -> None:
+        """Confirm a real barge-in without exposing the effect as an Agent Tool."""
+        method = getattr(self.lighting, "interrupted", None)
+        if method is None:
+            return
+        try:
+            method(work_light=self.current_mode == "work_light")
+        except Exception as exc:
+            print(f"打断灯效失败: {exc}", file=sys.stderr, flush=True)
+
     async def _stop_motion(self):
         task = self.current_motion_task
         if task is not None:
@@ -517,6 +615,26 @@ class LampApp:
             finally:
                 self.current_motion_task = None
         self.tracking = False
+
+    def _motion_active(self) -> bool:
+        task = self.current_motion_task
+        return task is not None and not task.done()
+
+    async def restore_after_barge_in(self) -> None:
+        """Restore the persistent mode only after interruption capture/ASR."""
+        if not self._barge_restore_needed:
+            return
+        self._barge_restore_needed = False
+        async with self._motion_lock:
+            if self.current_mode == "work_light":
+                await self.motion.work_pose(self.work_pose)
+            elif self._mode_runner is not None:
+                runner = self._mode_runner
+                self.tracking = self.current_mode == "tracking"
+                self.current_motion_task = asyncio.create_task(runner())
+            else:
+                await self.motion.standby()
+            self.mechanically_asleep = False
 
     async def play_motion(self, name, force_startup=False):
         async with self._motion_lock:
@@ -830,14 +948,38 @@ class LampApp:
         self.speaking = True
         self.light_state("speaking")
         motion_task = None
+        session = None
+        control = PlaybackControl()
+        session = self.barge_in.create_session(
+            motion_active=self._motion_active,
+            cancel_playback=control.cancel,
+        )
+        if session is not None:
+            def start_aec(sample_rate: int, channels: int) -> None:
+                nonlocal session
+                try:
+                    session.start(sample_rate, channels)
+                except Exception as exc:
+                    print(f"AEC 不可用，回退播完再听: {exc}", file=sys.stderr, flush=True)
+                    session.close()
+                    session = None
+
+            def feed_aec(pcm: bytes, sample_rate: int, channels: int) -> None:
+                if session is not None:
+                    session.feed_pcm(pcm, sample_rate, channels)
+
+            control.on_format = start_aec
+            control.on_pcm = feed_aec
         try:
             if expression is None:
-                return await asyncio.to_thread(speak, text)
+                if session is None:
+                    return await asyncio.to_thread(speak, text)
+                return await asyncio.to_thread(speak, text, None, control)
             loop = asyncio.get_running_loop()
             playback_started = asyncio.Event()
-            tts_task = asyncio.create_task(asyncio.to_thread(
-                speak, text, lambda: loop.call_soon_threadsafe(playback_started.set)
-            ))
+            callback = lambda: loop.call_soon_threadsafe(playback_started.set)
+            args = (text, callback) if session is None else (text, callback, control)
+            tts_task = asyncio.create_task(asyncio.to_thread(speak, *args))
             started_task = asyncio.create_task(playback_started.wait())
             done, _ = await asyncio.wait(
                 {tts_task, started_task}, return_when=asyncio.FIRST_COMPLETED
@@ -855,7 +997,27 @@ class LampApp:
                 except Exception as exc:
                     print(f"情绪动作 {expression} 失败: {exc}", file=sys.stderr, flush=True)
             return metrics
+        except SpeechInterrupted:
+            print("TTS cancelled", flush=True)
+            self.light_interrupted()
+            had_motion = self._motion_active()
+            if motion_task is not None and not motion_task.done():
+                motion_task.cancel()
+                await asyncio.gather(motion_task, return_exceptions=True)
+            if had_motion:
+                self._barge_restore_needed = True
+            await self._stop_motion()
+            result = None
+            if session is not None:
+                result = await asyncio.to_thread(
+                    session.wait_result, env_float("VAD_MAX_SECONDS", 15.0) + 2.0
+                )
+            if result is not None and len(result.audio):
+                self._barge_in_utterances.append(result)
+            raise AnnouncementInterrupted
         finally:
+            if session is not None:
+                await asyncio.to_thread(session.close)
             self.speaking = False
 
     def consume_shutdown_request(self) -> str | None:
@@ -949,7 +1111,7 @@ class LampApp:
         spoken = False
         if handle is not None:
             announcement = await handle.wait()
-            spoken = announcement.success
+            spoken = announcement.success and not announcement.interrupted
         if result.status == "shutdown_requested":
             self.light_state("wake_required")
         else:

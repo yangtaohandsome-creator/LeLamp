@@ -43,6 +43,8 @@ app 的 set_mode 接收模式及其执行协程，临时动作结束后恢复该
 
 OpenClaw 与 Pi Agent Core 通过统一薄接口接入，并由 `AGENT_BACKEND` 选择。当前正式后端为 Pi Agent + DeepSeek `deepseek-flash`；两者均调用相同模型接口契约和高层 Control API，不能绕过 app 写舵机。切换 Agent 不改变语音、动作、灯光、Timer、Alarm 或播报队列。
 
+Barge-in 属于 Voice 基础能力。确认 TTS 已被打断后，`LampApp` 只向 Lighting 发出一次语义反馈：普通模式短闪，WORK_LIGHT 仅做亮度脉冲并恢复原照明。该反馈不是 Agent Tool，不参与语义决策。
+
 ## 验证
 
 ```bash

@@ -3,7 +3,13 @@ import os
 from pathlib import Path
 from .config import env_float
 
-def make_spotter(model_dir: Path, keywords_file: Path) -> sherpa_onnx.KeywordSpotter:
+def make_spotter(
+    model_dir: Path,
+    keywords_file: Path,
+    *,
+    score: float | None = None,
+    threshold: float | None = None,
+) -> sherpa_onnx.KeywordSpotter:
     import sherpa_onnx
     return sherpa_onnx.KeywordSpotter(
         tokens=str(model_dir / "tokens.txt"),
@@ -13,6 +19,8 @@ def make_spotter(model_dir: Path, keywords_file: Path) -> sherpa_onnx.KeywordSpo
         keywords_file=str(keywords_file),
         num_threads=int(os.getenv("KWS_NUM_THREADS", "1")),
         provider="cpu",
-        keywords_score=env_float("KWS_SCORE", 1.5),
-        keywords_threshold=env_float("KWS_THRESHOLD", 0.12),
+        keywords_score=(env_float("KWS_SCORE", 1.5) if score is None else score),
+        keywords_threshold=(
+            env_float("KWS_THRESHOLD", 0.12) if threshold is None else threshold
+        ),
     )

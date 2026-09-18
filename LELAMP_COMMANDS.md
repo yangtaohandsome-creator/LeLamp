@@ -414,12 +414,13 @@ LLM 人格和行为规则采用 OpenClaw 风格文件，位于 runtime 根目录
 启动前确认 `~/lelamp_runtime/.env` 已配置 Agent、ASR 和控制接口密钥。密钥只放在 Pi 的 `.env` 中，不要提交到 GitHub；各项当前的实际值见 [本机凭据汇总](../LELAMP_SECRETS.local.md)。TTS 在 `voice.conf` 中选择：
 
 ```ini
-# Edge Xiaoxiao；唤醒后预连接，失败时回退远程服务
+# Edge Xiaoxiao；唤醒后预连接，当前关闭远程回退
 TTS_BACKEND=edge
-TTS_FALLBACK_BACKEND=remote
+TTS_FALLBACK_BACKEND=none
 
 # 如需完全使用同事的服务
 # TTS_BACKEND=remote
+# 如需 Edge 失败后回退同事的远程服务：TTS_FALLBACK_BACKEND=remote
 ```
 
 Edge 模式需要 `edge-tts` 和 `mpg123`，Pi5 已安装。修改配置后需重启 `lelamp.app`。
@@ -620,6 +621,80 @@ nohup uv run --no-sync -m lelamp.app >/tmp/lelamp-app.log 2>&1 &
 ```
 
 候选选择格式示例：`WAKE-B、TIMER-A、ALARM-C`。试听命令只临时播放，不会修改 `sound.conf` 或启用正式提示音。
+
+## 独立 AEC / Barge-in 诊断
+
+首次在 Pi5 安装 WebRTC AEC 与 ALSA 管线依赖：
+
+```bash
+sudo apt-get install -y --no-install-recommends \
+  gstreamer1.0-tools gstreamer1.0-alsa \
+  gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+  gstreamer1.0-plugins-bad libwebrtc-audio-processing-dev
+```
+
+运行前先停止 `lelamp.app`，避免两个进程同时占用 ReSpeaker。第一步扫描麦克风通道和 0～200 ms reference delay；扫描期间保持安静：
+
+```bash
+cd ~/lelamp_runtime
+uv run --no-sync -m lelamp.test.test_aec_barge_in --mode scan
+```
+
+扫描结束后，将输出的最佳通道和 delay 传给真人插话测试，例如：
+
+```bash
+uv run --no-sync -m lelamp.test.test_aec_barge_in \
+  --mode interactive --channel channel_1 --delay-ms 140
+```
+
+为避免相邻语句因间隔太短被 VAD 合并，推荐使用终端逐句提示模式。看到 `>>>` 后只说该句，说完保持安静并等待下一条提示：
+
+```bash
+uv run --no-sync -m lelamp.test.test_aec_barge_in \
+  --mode interactive --interactive-duration 40 --guided \
+  --channel channel_0 --delay-ms 80 --suppression-level low
+```
+
+测试结果保存到 `voice_debug/aec/<时间>/`，包括 reference、原始麦克风、AEC clean、100 ms RMS/VAD 轨迹和资源统计。该诊断不启动 Agent、ASR、灯光、动作或正式语音助手。
+
+2026-09-17 自动测试的最佳参数为 `channel_1 + 140 ms`。30 秒纯回声测试得到 `22.56 dB` 抑制、clean VAD 零误触发、平均 CPU `4.42%`、峰值 RSS `17.91 MB`。真人插话测试尚未完成，在此之前不要把 AEC 接入正式语音链。
+
+随后完成的真人双讲测试表明，持续使用 AEC clean 音频会压掉近端人声；动态停止播放则能保留完整后半句。因此正式 app 采用混合方案：静止时由 `channel_0 + 80 ms + low` AEC/VAD 触发，运动时只由本地 KWS 明确停止词触发，随后切换原始麦克风并进入现有 ASR。
+
+动态停止播放实验使用系统 Python（需要 `python3-gst-1.0`）。它检测到开口后只停止扬声器，继续录制到说话结束：
+
+```bash
+/usr/bin/python3 lelamp/test/test_dynamic_barge_in.py \
+  --reference voice_debug/aec/20260917-145831/reference_fixture.wav \
+  --output voice_debug/aec/dynamic_utterance.wav
+```
+
+保存录音后程序会自动调用项目现有 ASR，并在同一终端打印 `ASR RESULT`。只想录音时可追加 `--no-asr`。
+
+正式 Barge-in 参数位于 `voice.conf`。启动 app 后，静止播报期间可直接说新问题；舵机运动期间先说“停、等等、行了、别说了、闭嘴”之一，也可以继续接完整问题。终端应依次显示：
+
+```text
+AEC active
+user speech detected
+# 或 interrupt keyword detected
+TTS cancelled
+listening resumed
+```
+
+关闭正式打断、恢复播完再听：
+
+```ini
+BARGE_IN_ENABLED=0
+```
+
+舵机噪声采集与离线分析：
+
+```bash
+uv run --no-sync -m lelamp.test.test_servo_noise_capture
+uv run --no-sync -m lelamp.test.analyze_servo_noise voice_debug/servo_noise/<时间>
+```
+
+采集会实际播放全部主要动作，结束后进入睡眠并释放扭矩。2026-09-17 实测没有跨动作稳定的共同窄带，固定 notch 无法减少 Silero 误触发，不应接入正式链路。
 
 ### Pi Agent 优化参数与回退
 

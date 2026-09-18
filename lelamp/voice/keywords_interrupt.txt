@@ -1,0 +1,5 @@
+t íng @stop
+d ěng d ěng @wait
+x íng l e @enough
+b ié sh uō l e @stop_talking
+b ì z uǐ @shut_up

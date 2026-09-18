@@ -19,6 +19,7 @@ dependencies = [
     "pyarrow==20.0.0",
     "pyaudio>=0.2.14",
     "python-dotenv",
+    "pygobject==3.50.0",
     "sherpa-onnx>=1.13.7",
     "sounddevice>=0.5.2",
     "websockets>=15.0",

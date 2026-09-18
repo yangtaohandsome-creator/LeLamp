@@ -190,6 +190,49 @@ class LightingController:
             stop.wait(0.4)
         self._start(flash)
 
+    def interrupted(self, *, work_light: bool = False) -> None:
+        """A short local acknowledgement after a confirmed TTS interruption."""
+        load_dotenv(CONFIG_PATH, override=True)
+        duration = max(
+            0.05, float(os.getenv("INTERRUPT_LIGHT_DURATION_MS", "180")) / 1000
+        )
+        if work_light:
+            color = self._current_color
+            stable = self._brightness / 255
+            delta = max(
+                0.0,
+                min(0.25, float(os.getenv("WORK_LIGHT_INTERRUPT_PULSE_PERCENT", "10")) / 100),
+            )
+            pulse = stable + delta if stable + delta <= 1.0 else max(0.0, stable - delta)
+
+            def work_pulse(stop):
+                self._show(color, pulse)
+                if stop.wait(duration):
+                    return
+                self._show(color, stable)
+
+            self._start(work_pulse)
+            return
+
+        color = tuple(
+            int(os.getenv(f"INTERRUPT_LIGHT_{channel}", str(default)))
+            for channel, default in zip(("R", "G", "B"), (40, 210, 255))
+        )
+        brightness = max(
+            0.0,
+            min(1.0, float(os.getenv("INTERRUPT_LIGHT_BRIGHTNESS_PERCENT", "90")) / 100),
+        )
+
+        def flash(stop):
+            self._show(color, brightness)
+            if stop.wait(duration):
+                return
+            # Leave a quiet cyan acknowledgement until the normal voice loop
+            # selects listening/thinking/wake_required.
+            self._show(color, 0.22)
+
+        self._start(flash)
+
     def session_end(self) -> None:
         color = self.COLORS["warm_orange"]
         def fade(stop):

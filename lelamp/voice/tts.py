@@ -4,6 +4,7 @@ import time
 import httpx
 from .config import env_float
 from .audio import scale_pcm_s16le
+from .playback import PlaybackControl, SpeechInterrupted
 
 _edge_client = None
 _edge_lock = __import__("threading").Lock()
@@ -35,7 +36,11 @@ def close_tts() -> None:
     if client is not None:
         client.close()
 
-def _speak_remote(text: str, on_playback_start=None) -> tuple[float, float, float]:
+def _speak_remote(
+    text: str,
+    on_playback_start=None,
+    control: PlaybackControl | None = None,
+) -> tuple[float, float, float]:
     tts_url = os.getenv("TTS_URL", "http://192.168.40.209:8200/v1/tts/stream")
     request_started = time.perf_counter()
     player = None
@@ -60,6 +65,8 @@ def _speak_remote(text: str, on_playback_start=None) -> tuple[float, float, floa
                 )
             sample_rate = int(response.headers.get("x-sample-rate", "44100"))
             channels = int(response.headers.get("x-channels", "1"))
+            if control is not None:
+                control.format(sample_rate, channels)
             player = subprocess.Popen(
                 [
                     "aplay", "-q", "-D",
@@ -75,9 +82,13 @@ def _speak_remote(text: str, on_playback_start=None) -> tuple[float, float, floa
             if not 0 < volume_percent <= 200:
                 raise ValueError("APLAY_VOLUME_PERCENT 必须在 1～200 之间")
             for chunk in response.iter_bytes(chunk_size=4096):
+                if control is not None and control.cancelled:
+                    raise SpeechInterrupted
                 if first_chunk_at is None:
                     first_chunk_at = time.perf_counter()
                 chunk = scale_pcm_s16le(chunk, volume_percent)
+                if control is not None:
+                    control.pcm(chunk, sample_rate, channels)
                 player.stdin.write(chunk)
                 player.stdin.flush()
                 if on_playback_start is not None:
@@ -88,10 +99,20 @@ def _speak_remote(text: str, on_playback_start=None) -> tuple[float, float, floa
             player.stdin.close()
     finally:
         if player is not None:
+            cancelled = control is not None and control.cancelled
+            if cancelled and player.poll() is None:
+                player.terminate()
             if player.stdin is not None and not player.stdin.closed:
-                player.stdin.close()
-            if player.wait(timeout=120) != 0:
+                try:
+                    player.stdin.close()
+                except (BrokenPipeError, OSError):
+                    pass
+            if player.wait(timeout=120) != 0 and not (
+                cancelled
+            ):
                 raise RuntimeError("aplay failed while streaming TTS audio")
+    if control is not None and control.cancelled:
+        raise SpeechInterrupted
     first = first_chunk_at or request_started
     last = last_chunk_at or first
     return (
@@ -101,17 +122,29 @@ def _speak_remote(text: str, on_playback_start=None) -> tuple[float, float, floa
     )
 
 
-def speak(text: str, on_playback_start=None) -> tuple[float, float, float]:
+def speak(
+    text: str,
+    on_playback_start=None,
+    control: PlaybackControl | None = None,
+) -> tuple[float, float, float]:
     backend = os.getenv("TTS_BACKEND", "remote").strip().lower()
     if backend == "remote":
-        return _speak_remote(text, on_playback_start)
+        if control is None:
+            return _speak_remote(text, on_playback_start)
+        return _speak_remote(text, on_playback_start, control)
     if backend != "edge":
         raise ValueError(f"不支持的 TTS_BACKEND: {backend}")
     try:
-        return _get_edge_client().speak(text, on_playback_start)
+        if control is None:
+            return _get_edge_client().speak(text, on_playback_start)
+        return _get_edge_client().speak(text, on_playback_start, control)
+    except SpeechInterrupted:
+        raise
     except Exception as exc:
         fallback = os.getenv("TTS_FALLBACK_BACKEND", "remote").strip().lower()
         if fallback != "remote":
             raise
         print(f"Edge TTS 不可用，回退远程 TTS: {exc}", flush=True)
-        return _speak_remote(text, on_playback_start)
+        if control is None:
+            return _speak_remote(text, on_playback_start)
+        return _speak_remote(text, on_playback_start, control)

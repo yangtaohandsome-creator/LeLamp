@@ -1,8 +1,10 @@
 import os
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from lelamp import agent
+from lelamp.agent.common import AgentConnectionError
+from lelamp.app import LampApp
 
 
 class AgentBackendTests(unittest.IsolatedAsyncioTestCase):
@@ -28,6 +30,17 @@ class AgentBackendTests(unittest.IsolatedAsyncioTestCase):
         ):
             await agent.clear_session("s3")
         clear.assert_awaited_once_with("s3")
+
+    async def test_connection_failure_starts_agent_and_retries_once(self):
+        motion = MagicMock()
+        motion.robot = None
+        app = LampApp(motion=motion, lighting=MagicMock())
+        app.agent_service = MagicMock(ensure_ready=AsyncMock())
+        with patch("lelamp.app.ask_agent", new=AsyncMock(side_effect=[AgentConnectionError("down"), "好了。"])) as ask:
+            result = await app.handle_text("你好", "session-1")
+        self.assertEqual(result.text, "好了。")
+        self.assertEqual(ask.await_count, 2)
+        app.agent_service.ensure_ready.assert_awaited_once()
 
 
 if __name__ == "__main__":

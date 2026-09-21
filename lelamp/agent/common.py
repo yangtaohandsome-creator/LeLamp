@@ -8,6 +8,10 @@ class AgentError(RuntimeError):
     pass
 
 
+class AgentConnectionError(AgentError):
+    """Connection never reached the Agent; one retry cannot repeat tool actions."""
+
+
 SPOKEN_OUTPUT_RULE = (
     "你的最终 content 会直接由台灯朗读。只输出给用户听的最终台词，"
     "严禁输出分析、推理、候选解释、规则引用或工具选择过程。"

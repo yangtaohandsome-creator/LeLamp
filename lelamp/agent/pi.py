@@ -5,7 +5,7 @@ import os
 
 import httpx
 
-from .common import AgentError, sanitize_spoken_content
+from .common import AgentError, AgentConnectionError, sanitize_spoken_content
 from .openclaw import build_messages
 
 
@@ -53,6 +53,10 @@ async def ask_agent(text: str, session_id: str) -> str:
         return sanitize_spoken_content(content)
     except AgentError:
         raise
+    except httpx.ConnectError as exc:
+        raise AgentConnectionError("Pi Agent 连接失败") from exc
+    except httpx.ConnectTimeout as exc:
+        raise AgentConnectionError("Pi Agent 连接超时") from exc
     except (httpx.HTTPError, KeyError, TypeError, ValueError) as exc:
         raise AgentError(f"Pi Agent 调用失败: {exc}") from exc
 

@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import os
 import importlib.util
+import json
 import queue
 import re
 import threading
 import time
+import uuid
+import wave
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
@@ -59,10 +62,12 @@ class BargeInSession:
         spotter,
         motion_active: Callable[[], bool],
         cancel_playback: Callable[[], None],
+        shared_capture=None,
     ) -> None:
         self._spotter = spotter
         self._motion_active = motion_active
         self._cancel_playback = cancel_playback
+        self._shared_capture = shared_capture
         self._pipeline = None
         self._appsrc = None
         self._gst = None
@@ -89,6 +94,11 @@ class BargeInSession:
         self._started = False
         self._aec_confirmed = False
         self._format: tuple[int, int] | None = None
+        self._diagnostic_root = os.getenv("BARGE_IN_DIAGNOSTIC_DIR", "").strip()
+        self._diagnostic_label = os.getenv("BARGE_IN_DIAGNOSTIC_LABEL", "session")
+        self._diagnostic_reference = bytearray()
+        self._diagnostic_raw = bytearray()
+        self._diagnostic_clean = bytearray()
 
     def start(self, sample_rate: int, channels: int) -> None:
         if self._started:
@@ -103,18 +113,32 @@ class BargeInSession:
             raise BargeInUnavailable(f"PyGObject/GStreamer 不可用: {exc}") from exc
         Gst.init(None)
         self._gst = Gst
-        capture_device = os.getenv("ARECORD_DEVICE", "hw:seeed2micvoicec,0")
+        capture_device = (
+            self._shared_capture.device if self._shared_capture is not None
+            else os.getenv("ARECORD_DEVICE", "hw:seeed2micvoicec,0")
+        )
         channel = int(os.getenv("BARGE_IN_AEC_CHANNEL", "0"))
         delay_ns = int(env_float("BARGE_IN_AEC_DELAY_MS", 80)) * 1_000_000
         level = os.getenv("BARGE_IN_AEC_LEVEL", "low").strip().lower()
+        if self._shared_capture is not None:
+            microphone_source = (
+                f'alsasrc device="{capture_device}" do-timestamp=true ! '
+                "audio/x-raw,format=S32LE,rate=48000,channels=2 ! audioconvert ! "
+                "audio/x-raw,format=S16LE,rate=48000,channels=2 ! deinterleave name=mic "
+                f"mic.src_{channel} ! queue ! audio/x-raw,format=S16LE,rate=48000,channels=1 ! "
+            )
+        else:
+            microphone_source = (
+                f"alsasrc device={capture_device} do-timestamp=true ! "
+                "audio/x-raw,format=S16LE,rate=48000,channels=2 ! deinterleave name=mic "
+                f"mic.src_{channel} ! queue ! audio/x-raw,format=S16LE,rate=48000,channels=1 ! "
+            )
         pipeline = (
             f"appsrc name=reference is-live=true format=time do-timestamp=true "
             f"caps=audio/x-raw,format=S16LE,layout=interleaved,rate={sample_rate},channels={channels} ! "
             "audioconvert ! audioresample ! audio/x-raw,format=S16LE,rate=48000,channels=1 ! "
             f"identity ts-offset={delay_ns} ! webrtcechoprobe name=probe ! fakesink sync=true "
-            f"alsasrc device={capture_device} do-timestamp=true ! "
-            "audio/x-raw,format=S16LE,rate=48000,channels=2 ! deinterleave name=mic "
-            f"mic.src_{channel} ! queue ! audio/x-raw,format=S16LE,rate=48000,channels=1 ! "
+            f"{microphone_source}"
             "tee name=near "
             "near. ! queue ! appsink name=raw emit-signals=true sync=false max-buffers=8 drop=true "
             "near. ! queue ! webrtcdsp probe=probe echo-cancel=true delay-agnostic=true "
@@ -156,6 +180,8 @@ class BargeInSession:
             self.start(sample_rate, channels)
         if self._format != (sample_rate, channels) or self._appsrc is None:
             return
+        if self._diagnostic_root:
+            self._diagnostic_reference.extend(pcm)
         # Decoders can produce PCM faster than the ALSA device consumes it.
         # Timestamping every chunk immediately would make the AEC reference run
         # ahead of the sound that actually leaves the speaker.  A dedicated
@@ -273,6 +299,11 @@ class BargeInSession:
             if item is None:
                 return
             kind, data = item
+            if self._diagnostic_root:
+                if kind == "raw":
+                    self._diagnostic_raw.extend(data)
+                else:
+                    self._diagnostic_clean.extend(data)
             target = raw_buffer if kind == "raw" else clean_buffer
             target.extend(data)
             while len(target) >= self.BLOCK_BYTES:
@@ -393,6 +424,41 @@ class BargeInSession:
             and self._reference_worker is not threading.current_thread()
         ):
             self._reference_worker.join(timeout=2)
+        self._write_diagnostic()
+
+    def _write_diagnostic(self) -> None:
+        if not self._diagnostic_root:
+            return
+        root = Path(self._diagnostic_root)
+        root.mkdir(parents=True, exist_ok=True)
+        output = root / f"{self._diagnostic_label}-{uuid.uuid4().hex[:8]}"
+        output.mkdir()
+
+        def write(path: Path, data: bytes, rate: int) -> None:
+            with wave.open(str(path), "wb") as wav:
+                wav.setnchannels(1)
+                wav.setsampwidth(2)
+                wav.setframerate(rate)
+                wav.writeframes(data)
+
+        sample_rate = self._format[0] if self._format is not None else 24_000
+        write(output / "reference.wav", bytes(self._diagnostic_reference), sample_rate)
+        write(output / "raw_mic.wav", bytes(self._diagnostic_raw), self.RATE)
+        write(output / "aec_clean.wav", bytes(self._diagnostic_clean), self.RATE)
+        (output / "metadata.json").write_text(
+            json.dumps(
+                {
+                    "label": self._diagnostic_label,
+                    "triggered": self._triggered.is_set(),
+                    "trigger": self._trigger,
+                    "keyword": self._keyword,
+                    "reference_delay_ms": env_float("BARGE_IN_AEC_DELAY_MS", 80),
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
 
 class BargeInController:
@@ -412,7 +478,7 @@ class BargeInController:
             and importlib.util.find_spec("gi") is not None
         )
 
-    def create_session(self, *, motion_active, cancel_playback) -> BargeInSession | None:
+    def create_session(self, *, motion_active, cancel_playback, shared_capture=None) -> BargeInSession | None:
         if not self.enabled:
             return None
         if not self.keywords_file.is_file():
@@ -427,6 +493,7 @@ class BargeInController:
             spotter=self._spotter,
             motion_active=motion_active,
             cancel_playback=cancel_playback,
+            shared_capture=shared_capture,
         )
 
     def prepare(self) -> None:

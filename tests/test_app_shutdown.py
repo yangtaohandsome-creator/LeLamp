@@ -30,11 +30,14 @@ class AppShutdownTests(unittest.IsolatedAsyncioTestCase):
             patch.object(app_module, "LampApp", return_value=lamp),
             patch.object(app_module, "ControlServer", return_value=control),
             patch.object(app_module, "RemoteTextServer", return_value=remote),
+            patch.object(app_module, "PiAgentService") as agent_service,
             patch.object(app_module, "run_voice", side_effect=voice_forever),
             patch.object(app_module, "resolve_location", side_effect=app_module.LocationError("offline")),
             patch.object(loop, "add_signal_handler", side_effect=remember_handler),
             patch.object(loop, "remove_signal_handler", return_value=True),
         ):
+            agent_service.return_value.ensure_ready = AsyncMock()
+            agent_service.return_value.close = AsyncMock()
             task = asyncio.create_task(app_module.run())
             for _ in range(20):
                 if signal.SIGTERM in handlers:

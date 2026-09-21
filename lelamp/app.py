@@ -13,6 +13,7 @@ from .voice.audio import (
     start_capture, stop_capture, read_capture_block, read_capture_stereo_block,
     select_kws_audio, measure_noise,
 )
+from .voice.shared_capture import SharedCapture
 from .voice.kws import make_spotter
 from .voice.vad import CaptureInterrupted, capture_utterance
 from .voice.asr import transcribe
@@ -23,6 +24,8 @@ from .voice.announcement import (
     Announcement, AnnouncementInterrupted, AnnouncementPriority, AnnouncementQueue,
 )
 from .agent import AgentError, ask_agent, clear_session
+from .agent.common import AgentConnectionError
+from .agent.pi_service import PiAgentService
 from .control import ControlServer
 from .remote_text import RemoteTextServer
 from .tools import ToolExecutor
@@ -30,6 +33,7 @@ from .timer import TimerManager, TimerSnapshot
 from .alarm import AlarmManager, AlarmSnapshot
 from .location import LocationError, resolve_location
 from .audio import SoundPlayer
+from .diagnostics import AudioHealthMonitor
 
 
 @dataclass(frozen=True)
@@ -47,21 +51,74 @@ class RemoteActionResult(ActionResult):
 
 async def run_voice(app) -> None:
     load_voice_config()
+    shared_capture_enabled = os.getenv("VOICE_SHARED_CAPTURE", "0") == "1"
+
+    def read_mono():
+        if shared_capture_enabled:
+            return capture.read_mono()
+        return read_capture_block(capture, app.audio_health.observe)
+
+    def read_stereo():
+        if shared_capture_enabled:
+            return capture.read_stereo()
+        return read_capture_stereo_block(capture, app.audio_health.observe)
+
+    def pause_capture() -> None:
+        nonlocal capture
+        if capture is None:
+            return
+        if shared_capture_enabled:
+            capture.pause()
+            return
+        app.capture_active = False
+        stop_capture(capture)
+        capture = None
+
+    def resume_capture() -> None:
+        nonlocal capture
+        if shared_capture_enabled:
+            capture.resume()
+            app.capture_active = True
+            return
+        capture = start_capture()
+        app.capture_active = True
+
     # Prepare Edge while KWS is waiting. Wake detection calls this again, so a
     # failed startup connection gets another chance without delaying speech.
     preconnect_tts()
     model_dir = Path(os.getenv("KWS_MODEL_DIR", "kws_models/sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01"))
     keywords_file = Path(os.getenv("KWS_KEYWORDS_FILE", str(model_dir / "keywords_xiao_deng.txt")))
     spotter = make_spotter(model_dir, keywords_file)
-    capture = start_capture()
+    if shared_capture_enabled:
+        capture = SharedCapture(app.audio_health.observe)
+        capture.resume()
+        capture.start()
+        app.shared_capture = capture
+        print("持续麦克风采音已启用", flush=True)
+    else:
+        capture = start_capture()
+    app.capture_active = True
     conversation_active = False
     conversation_id: str | None = None
     conversation_turns = 0
     ambient_levels: deque[float] = deque(maxlen=50)
-    startup_levels = await asyncio.to_thread(
-        measure_noise, lambda: read_capture_block(capture),
-        env_float("VAD_CAPTURE_WARMUP_SECONDS", 0.8),
-    )
+    try:
+        startup_levels = await asyncio.to_thread(
+            measure_noise, read_mono,
+            env_float("VAD_CAPTURE_WARMUP_SECONDS", 0.8),
+        )
+    except Exception as exc:
+        if not shared_capture_enabled:
+            raise
+        print(f"持续采音启动失败，回退旧采音方式: {exc}", file=sys.stderr, flush=True)
+        capture.close()
+        app.shared_capture = None
+        shared_capture_enabled = False
+        capture = start_capture()
+        startup_levels = await asyncio.to_thread(
+            measure_noise, read_mono,
+            env_float("VAD_CAPTURE_WARMUP_SECONDS", 0.8),
+        )
     ambient_levels.extend(startup_levels)
     # Never feed the ALSA startup transient into the first decoder stream.
     stream = spotter.create_stream()
@@ -72,14 +129,12 @@ async def run_voice(app) -> None:
     sleep_after_barge_in = False
 
     async def play_pending_announcements(*, restore_light: bool = True) -> None:
-        """Give the sole TTS consumer a safe window with capture stopped."""
+        """Pause ordinary listening while the sole TTS consumer is active."""
         nonlocal capture, stream, pending_noise_levels, conversation_deadline
         nonlocal pending_barge_in
         if not app.announcement_pending():
             return
-        if capture is not None:
-            stop_capture(capture)
-            capture = None
+        pause_capture()
         await app.drain_announcements()
         # One simple rule: every completed or interrupted announcement opens a
         # fresh idle window.  Old elapsed time is irrelevant; only 15 seconds
@@ -96,14 +151,23 @@ async def run_voice(app) -> None:
                 flush=True,
             )
             return
-        capture = start_capture()
-        pending_noise_levels = await asyncio.to_thread(
-            measure_noise, lambda: read_capture_block(capture),
-            env_float("VAD_CAPTURE_WARMUP_SECONDS", 0.5),
-        )
+        resume_capture()
+        if shared_capture_enabled:
+            pending_noise_levels = []
+        else:
+            pending_noise_levels = await asyncio.to_thread(
+                measure_noise, read_mono,
+                env_float("VAD_CAPTURE_WARMUP_SECONDS", 0.5),
+            )
         stream = spotter.create_stream()
         if restore_light:
             app.light_state("listening" if conversation_active else "wake_required")
+        ended_at = app.last_playback_ended_at
+        if ended_at is not None:
+            print(
+                f"AUDIO RESUME | 播放结束到可监听: {time.monotonic() - ended_at:.3f} 秒",
+                flush=True,
+            )
 
     async def enter_sleep_waiting(message: str, force_sleep: bool = False) -> None:
         """Park the mechanics, then keep this process listening for the next wake."""
@@ -111,9 +175,7 @@ async def run_voice(app) -> None:
         nonlocal conversation_id, conversation_turns
         nonlocal stream, pending_noise_levels
         nonlocal sleep_after_barge_in, pending_barge_in
-        if capture is not None:
-            stop_capture(capture)
-            capture = None
+        pause_capture()
         # WORK_LIGHT is a persistent user mode: a voice timeout only resets
         # the conversation and keeps the desk illumination running.
         if force_sleep or app.current_mode != "work_light":
@@ -133,7 +195,7 @@ async def run_voice(app) -> None:
         pending_barge_in = None
         pending_noise_levels = []
         stream = spotter.create_stream()
-        capture = start_capture()
+        resume_capture()
         if app.current_mode != "work_light":
             app.light_state("wake_required")
         print(message, flush=True)
@@ -148,7 +210,7 @@ async def run_voice(app) -> None:
                     "CONVERSATION_IDLE_SECONDS", 15.0
                 )
             if not conversation_active:
-                stereo = await asyncio.to_thread(read_capture_stereo_block, capture)
+                stereo = await asyncio.to_thread(read_stereo)
                 if app.announcement_pending():
                     await play_pending_announcements()
                     continue
@@ -215,7 +277,7 @@ async def run_voice(app) -> None:
             else:
                 try:
                     utterance = await asyncio.to_thread(
-                        capture_utterance, lambda: read_capture_block(capture),
+                        capture_utterance, read_mono,
                         timeout,
                         prompt,
                         initial_noise_levels=pending_noise_levels,
@@ -236,9 +298,7 @@ async def run_voice(app) -> None:
                 continue
             # Release the normal capture clock before playback. Barge-in audio
             # already came from the duplex AEC session, so capture is None.
-            if capture is not None:
-                stop_capture(capture)
-                capture = None
+            pause_capture()
             valid_text_received = False
             shutdown_requested = False
             reply_handle = None
@@ -335,12 +395,15 @@ async def run_voice(app) -> None:
 
             if app.announcement_pending():
                 await play_pending_announcements()
-            elif capture is None:
-                capture = start_capture()
-                pending_noise_levels = await asyncio.to_thread(
-                    measure_noise, lambda: read_capture_block(capture),
-                    env_float("VAD_CAPTURE_WARMUP_SECONDS", 0.5),
-                )
+            elif capture is None or shared_capture_enabled:
+                resume_capture()
+                if shared_capture_enabled:
+                    pending_noise_levels = []
+                else:
+                    pending_noise_levels = await asyncio.to_thread(
+                        measure_noise, read_mono,
+                        env_float("VAD_CAPTURE_WARMUP_SECONDS", 0.5),
+                    )
                 stream = spotter.create_stream()
             if valid_text_received:
                 conversation_deadline = time.monotonic() + env_float(
@@ -357,7 +420,12 @@ async def run_voice(app) -> None:
                 print("会话已结束，请说“小灯”重新唤醒", flush=True)
     finally:
         if capture is not None:
-            stop_capture(capture)
+            app.capture_active = False
+            if shared_capture_enabled:
+                capture.close()
+                app.shared_capture = None
+            else:
+                stop_capture(capture)
 
 class LampApp:
     """Application coordination; all app motion sources enter through this object."""
@@ -395,9 +463,15 @@ class LampApp:
         self._barge_in_utterances: deque[BargeInUtterance] = deque()
         self._barge_restore_needed = False
         self.announcements = AnnouncementQueue(self._process_announcement_batch)
+        self.audio_health = AudioHealthMonitor()
+        self.capture_active = False
+        self.shared_capture = None
+        self.last_playback_ended_at: float | None = None
+        self.voice_task = None
         self.timers = TimerManager(self._on_timer_complete)
         self.alarms = AlarmManager(self._on_alarm_complete)
         self.tools = ToolExecutor(self)
+        self.agent_service: PiAgentService | None = None
 
     async def start(self) -> None:
         await self.announcements.start()
@@ -946,6 +1020,7 @@ class LampApp:
     ) -> tuple[float, float, float]:
         """Sole app-level TTS path, called only by AnnouncementQueue."""
         self.speaking = True
+        self.last_playback_ended_at = None
         self.light_state("speaking")
         motion_task = None
         session = None
@@ -953,6 +1028,10 @@ class LampApp:
         session = self.barge_in.create_session(
             motion_active=self._motion_active,
             cancel_playback=control.cancel,
+            shared_capture=self.shared_capture,
+        )
+        control.on_playback_end = lambda: setattr(
+            self, "last_playback_ended_at", time.monotonic()
         )
         if session is not None:
             def start_aec(sample_rate: int, channels: int) -> None:
@@ -1016,9 +1095,17 @@ class LampApp:
                 self._barge_in_utterances.append(result)
             raise AnnouncementInterrupted
         finally:
+            cleanup_started = time.monotonic()
             if session is not None:
                 await asyncio.to_thread(session.close)
             self.speaking = False
+            if self.last_playback_ended_at is not None:
+                print(
+                    "AUDIO CLEANUP | "
+                    f"播放结束到AEC关闭: {time.monotonic() - self.last_playback_ended_at:.3f} 秒 "
+                    f"| AEC关闭耗时: {time.monotonic() - cleanup_started:.3f} 秒",
+                    flush=True,
+                )
 
     def consume_shutdown_request(self) -> str | None:
         reason = self._shutdown_reason
@@ -1070,9 +1157,15 @@ class LampApp:
         self._active_agent_turn_id = turn_id
         self._agent_turn_text = text
         try:
-            answer = await ask_agent(text, session_id)
+            try:
+                answer = await ask_agent(text, session_id)
+            except AgentConnectionError:
+                if self.agent_service is None:
+                    raise
+                await self.agent_service.ensure_ready()
+                answer = await ask_agent(text, session_id)
             expression = self.take_pending_expression(turn_id)
-        except AgentError as exc:
+        except (AgentError, RuntimeError) as exc:
             self.clear_pending_expression(turn_id)
             print(str(exc), file=sys.stderr, flush=True)
             return ActionResult("脑子暂时连不上，你过会儿再试。", "failed")
@@ -1147,6 +1240,7 @@ def match_local_command(text):
 async def run():
     load_voice_config()
     app = None
+    agent_service = None
     control = None
     remote = None
     voice_task = None
@@ -1179,9 +1273,14 @@ async def run():
         remote = RemoteTextServer(app)
         await control.start()
         await remote.start()
+        if os.getenv("AGENT_BACKEND", "openclaw").strip().lower() == "pi":
+            agent_service = PiAgentService()
+            await agent_service.ensure_ready()
+            app.agent_service = agent_service
         app.light_state("wake_required")
 
         voice_task = asyncio.create_task(run_voice(app), name="lelamp-voice")
+        app.voice_task = voice_task
         signal_task = asyncio.create_task(stop_requested.wait(), name="lelamp-stop-signal")
         done, _ = await asyncio.wait(
             (voice_task, signal_task), return_when=asyncio.FIRST_COMPLETED
@@ -1204,8 +1303,12 @@ async def run():
                     if control is not None:
                         await control.close()
                 finally:
-                    if app is not None:
-                        await app.close()
+                    try:
+                        if app is not None:
+                            await app.close()
+                    finally:
+                        if agent_service is not None:
+                            await agent_service.close()
         finally:
             for signum in installed_signals:
                 loop.remove_signal_handler(signum)

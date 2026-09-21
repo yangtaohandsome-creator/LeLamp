@@ -309,6 +309,8 @@ class EdgeSpeechClient:
             await player.stdin.wait_closed()
             if await player.wait() != 0:
                 raise EdgeTtsError("Edge TTS 播放失败")
+            if control is not None:
+                control.playback_end()
         finally:
             if not pump_task.done():
                 pump_task.cancel()
@@ -335,18 +337,20 @@ class EdgeSpeechClient:
         self._websocket = None
         self._session = None
         if websocket is not None and not websocket.closed:
-            try:
-                await asyncio.wait_for(websocket.close(), timeout=0.5)
-            except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
-                # A cancelled synthesis must never wait for the remote peer's
-                # close handshake.  Closing the underlying response is local
-                # and immediate; the next request creates a fresh connection.
-                response = getattr(websocket, "_response", None)
-                if response is not None:
-                    response.close()
+            # Playback has already ended.  A graceful remote close handshake
+            # must not delay microphone handoff; close the local response and
+            # prepare a fresh speculative connection instead.
+            response = getattr(websocket, "_response", None)
+            if response is not None:
+                response.close()
+            else:
+                try:
+                    await asyncio.wait_for(websocket.close(), timeout=0.05)
+                except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
+                    pass
         if session is not None and not session.closed:
             try:
-                await asyncio.wait_for(session.close(), timeout=0.5)
+                await asyncio.wait_for(session.close(), timeout=0.1)
             except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
                 pass
 

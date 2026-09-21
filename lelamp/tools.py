@@ -238,6 +238,10 @@ class ToolExecutor:
         if name == "get_robot_state":
             return ToolOutcome("completed", "状态读取成功", self.app.get_robot_state())
 
+        if name == "get_system_health":
+            from .diagnostics import run_live
+            return ToolOutcome("completed", "只读自检完成", await run_live(self.app))
+
         if name == "stop_tracking":
             was_tracking = self.app.current_mode == "tracking"
             await self.app.stop_tracking()

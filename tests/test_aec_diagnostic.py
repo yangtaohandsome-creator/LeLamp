@@ -12,9 +12,25 @@ from lelamp.test.test_aec_barge_in import (
     build_pipeline,
     prepare_reference,
 )
+from lelamp.test.test_tts_acoustic_latency import estimate_latency
 
 
 class AecDiagnosticTests(unittest.TestCase):
+    def test_acoustic_latency_estimator_recovers_known_delay(self):
+        rate = 48_000
+        rng = np.random.default_rng(7)
+        reference = rng.normal(0, 0.2, rate).astype(np.float32)
+        expected = round(0.5 * rate)
+        delay = round(0.087 * rate)
+        microphone = np.zeros(expected + delay + len(reference) + rate // 10, dtype=np.float32)
+        microphone[expected + delay:expected + delay + len(reference)] = reference * 0.6
+        measured, score, detected = estimate_latency(
+            microphone, reference, rate=rate, expected_start_samples=expected,
+        )
+        self.assertAlmostEqual(measured, 87.0, delta=0.1)
+        self.assertEqual(detected, expected + delay)
+        self.assertGreater(score, 0.99)
+
     def test_pipeline_keeps_probe_and_dsp_in_one_process(self):
         command = build_pipeline(
             reference_wav=Path("/tmp/ref.wav"),

@@ -17,19 +17,22 @@ def start_capture() -> subprocess.Popen:
         stderr=subprocess.DEVNULL,
     )
 
-def read_capture_block(capture: subprocess.Popen) -> np.ndarray:
+def read_capture_block(capture: subprocess.Popen, observer=None) -> np.ndarray:
     """Read 100 ms of 48 kHz stereo PCM and convert it to 16 kHz mono."""
-    return read_capture_stereo_block(capture).mean(axis=1)
+    return read_capture_stereo_block(capture, observer).mean(axis=1)
 
 
-def read_capture_stereo_block(capture: subprocess.Popen) -> np.ndarray:
+def read_capture_stereo_block(capture: subprocess.Popen, observer=None) -> np.ndarray:
     """Read 100 ms of 48 kHz stereo PCM as normalized 16 kHz samples."""
     assert capture.stdout is not None
     raw = capture.stdout.read(48000 // 10 * 2 * 2)
     if len(raw) != 48000 // 10 * 2 * 2:
         raise RuntimeError("arecord stopped unexpectedly")
     stereo = np.frombuffer(raw, dtype="<i2").reshape(-1, 2).astype(np.float32)
-    return (stereo[::3] / 32768.0).copy()
+    samples = (stereo[::3] / 32768.0).copy()
+    if observer is not None:
+        observer(samples)
+    return samples
 
 
 def select_kws_audio(stereo: np.ndarray) -> np.ndarray:

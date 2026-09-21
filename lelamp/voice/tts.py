@@ -111,6 +111,8 @@ def _speak_remote(
                 cancelled
             ):
                 raise RuntimeError("aplay failed while streaming TTS audio")
+            if not cancelled and control is not None:
+                control.playback_end()
     if control is not None and control.cancelled:
         raise SpeechInterrupted
     first = first_chunk_at or request_started

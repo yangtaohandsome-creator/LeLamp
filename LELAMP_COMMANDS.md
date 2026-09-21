@@ -7,6 +7,16 @@
 
 ## 1. 固定配置与进入项目
 
+### 一键只读自检
+
+在 Pi5 的 `~/lelamp_runtime` 运行：
+
+```bash
+uv run --no-sync -m lelamp.diagnostics
+```
+
+自检不会发声、移动舵机或重启服务。`--json` 输出结构化结果；`--mic` 提示说一句话并检查现有采音流的音量变化；`--deep agent`、`--deep asr`、`--deep tts` 或 `--deep all` 会向相应服务发送无声测试请求。退出码 0 为未发现软件故障、1 为警告、2 为异常。灯板是否真实发光、扬声器是否真实出声和实际关节扭矩仍需人工确认。运行中的 app 通过 `POST /v1/tools/get_system_health` 提供同一份报告，使用原有 Control API Bearer Token。
+
 | 项目 | 当前值 |
 | --- | --- |
 | SSH | `lamppi@192.168.40.77` |
@@ -519,12 +529,14 @@ LLM_BASE_URL=https://api.deepseek.com
 LLM_MODEL=deepseek-flash
 ```
 
-启动 Pi Agent 候选服务：
+正常只需启动 `lelamp.app`：它会检查本机 Pi Agent；未运行时自动启动，并等到健康检查通过后才进入语音监听。若 Agent 后续退出，下一次连接失败会自动重启并安全重试一次。手动调试 Pi Agent 时才单独运行：
 
 ```bash
 cd ~/lelamp_runtime
 ./pi-agent/run.sh
 ```
+
+自动启动失败时查看 `/tmp/lelamp-pi-agent.log`。app 退出时只关闭由它自己启动的 Agent；原本已独立运行的 Agent 保持运行。`AGENT_BACKEND=openclaw` 时不会启动 Pi Agent。
 
 要切回 OpenClaw，修改 `voice.conf`：
 

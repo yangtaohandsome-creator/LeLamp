@@ -112,7 +112,7 @@ Barge-in 是 `voice/` 基础能力，不是 Agent Tool。实现位于 `lelamp/vo
 - 舵机运动：复用 `current_motion_task`，只用本地 sherpa KWS 接受“停、等等、行了、别说了、闭嘴”，避免舵机噪声触发自然 VAD。
 - TTS PCM 同时送扬声器和 AEC reference；命中后终止 `aplay`/Edge 解码，保留约 0.5 秒预录并继续收完整句子，再进入原 ASR/Agent 流程。
 - 已修复正式 GStreamer appsrc caps、reference 实时节奏、Edge 取消死锁、raw pre-roll 导致自识别、打断后立刻错误睡眠等问题。
-- 当前自然插话参数：`BARGE_IN_IDLE_VAD_THRESHOLD=0.35`、`BARGE_IN_IDLE_MIN_SPEECH_SECONDS=0.15`；停止词参数与“小灯”唤醒参数独立。
+- 当前自然插话参数：`BARGE_IN_IDLE_VAD_THRESHOLD=0.40`、`BARGE_IN_IDLE_MIN_SPEECH_SECONDS=0.20`；停止词参数与“小灯”唤醒参数独立。
 - 告别仲裁：正常播完告别直接睡眠；告别播报被打断且 ASR 有有效新文字则取消睡眠并回答；打断后 ASR 为空或失败仍执行睡眠。
 - TTS 正常结束或被打断都把连续会话截止时间重置为“此刻 + 15 秒”。
 - `BARGE_IN_DEBUG=0` 是仓库默认；排错时可临时设为 1。
@@ -120,7 +120,17 @@ Barge-in 是 `voice/` 基础能力，不是 Agent Tool。实现位于 `lelamp/vo
 
 正式 Barge-in 已能停止播放并进入 ASR，但最新告别仲裁和误触发参数仍需实机回归。重点验证：自然插话、空 ASR 后仍等待 15 秒、告别三种分支、运动中五组停止词、舵机单独运动不误停、WORK_LIGHT 状态恢复。不要重新接回旧的 `BARGE_IN_VAD_*` 参数。
 
+2026-09-20 已把普通监听改为持续采音：`VOICE_SHARED_CAPTURE=1` 时使用 ALSA `dsnoop` 保持底层 ReSpeaker 常驻，普通监听和每轮新建的 WebRTC AEC 共享该底层流。播报前后只暂停/恢复普通音频消费，不再关闭麦克风或等待 0.8 秒预热；`VOICE_SHARED_CAPTURE=0` 可回退旧方式。Edge 播放结束后不再等待远端 WebSocket 关闭握手。Pi5 完整远程文本链实测“播放结束→AEC 关闭→恢复可监听”为 `0.047 秒`，纯回声为 `0/3` 误打断，数据在 `voice_debug/aec/shared_capture_dsnoop_smoke2/`。第一版 Python `appsrc` 转发方案因破坏 ALSA/GStreamer 共同时间基准已废弃，不要恢复。
+
 独立 AEC、动态打断和舵机噪声诊断脚本保留在 `lelamp/test/`。固定频率 notch 已证实不能消除多种舵机噪声；以后继续分类器实验时直接读 `TODO.md`。
+
+正式 TTS 声学延迟诊断为 `lelamp/test/test_tts_acoustic_latency.py`：它旁路保存实际写给 `aplay` 的 Edge PCM，同时以 20 ms 块采集 ReSpeaker 双通道，再用互相关计算偏移。2026-09-18 使用两句不同时长文本共测 12 轮：channel 0/1 均稳定在约 `8.31～8.50 ms`，总中位约 `8.4 ms`。原始数据位于 Pi5 `voice_debug/tts_latency/20260918-124444/` 和 `20260918-124645/`。当前 `BARGE_IN_AEC_DELAY_MS=80` 是早期 AEC 抑制扫描的工作参数，并非物理声学延迟；在修改它之前，应基于正式 appsrc+AEC 链路围绕 `8 ms` 做细粒度抑制和双讲回归。
+
+随后用 `test_formal_aec_delay.py` 对正式 Edge/aplay/Barge-in 链做纯回声扫描。物理延迟 `8 ms` 的 AEC 抑制反而弱于 80 ms；40～120 ms 各值均可能偶发误触发，120 ms 虽平均抑制较稳定，9 次仍有 1 次失败，且未验证真人双讲。失败 clean 与 TTS reference 相似度很低，更像环境类人声噪音被 Silero 误判。因此正式值暂时保持 80 ms；不要继续靠扫固定 delay 解决误触发，下一步应在现有 VAD 后增加轻量二次确认，同时保留真人插话灵敏度。诊断数据在 Pi5 `voice_debug/aec/formal_delay/`。
+
+固定回归集位于 `benchmarks/barge_in/dataset.jsonl`，评测入口是 `scripts/evaluate_barge_in_dataset.py`；音频仍只存于 Pi5 `voice_debug/`。V0 排除了舵机运动，共 44 条：27 条可重放的纯播报/环境负样本、6 条已知误打断、2 条成功插话、5 条漏打断/检测后 ASR 为空、4 段待切分旧真人实验；其中三条完全未触发案例因为没有连续音频，仅作日志标签。当前 `0.40/0.20 秒` 在全部负样本上误触发 5/27，只看录制 delay 为 80 ms 的样本为 1/6，结果在 `voice_debug/barge_benchmark/v0-current.json`。真人正样本明显不足，后续需要带明确原句和插话时刻的定向补录；必须连续保存 raw/reference/clean，才能把未触发的失败也纳入评测。
+
+`scripts/tune_barge_in_dataset.py` 已对 56 组 Silero 参数做离线对照。把已触发录音的 0.5 秒 AEC clean 预录也纳入近似判定后，当前 `0.40/0.20 秒`为真人 3/4、负样本误触发 7/32；没有任何候选同时保持真人召回并降低误触发。`0.30/0.20 秒`虽达到 4/4，但误触发为 14/32；最短语音提高到 0.30 秒则只剩 1/4。简单 RMS、过零率和频带比例也出现真人与误触发重叠，暂不适合作为硬阈值二次确认。正式参数继续保持不变，结果在 Pi5 `voice_debug/barge_benchmark/grid-v0.json`。
 
 ## TTS 决策与历史候选
 
@@ -131,10 +141,20 @@ Barge-in 是 `voice/` 基础能力，不是 Agent Tool。实现位于 `lelamp/vo
 
 ## 下一步：视觉开发
 
-`lelamp/vision/` 目前只有占位，尚未实现摄像头、人脸或手势识别。开发时遵守以下边界：
+`lelamp/vision/` 已完成最小目录和路线文档，尚未准备视觉依赖、下载模型、编写视觉程序或运行摄像头实验；摄像头、人脸和手势能力均未实现。
+
+第一阶段先用现有 UGREEN USB 摄像头独立验证选型需求，交付购买依据，不接入正式 app、不触发视觉动作控制。第二阶段等新摄像头到货、安装并验证实际视角后，再细化正式设计与开发。MediaPipe Gesture Recognizer、YuNet、SFace 是待验证候选，不是既定依赖。
+
+详细方案统一维护在视觉目录：
+
+- [模块职责与目录导航](lelamp/vision/README.md)
+- [开发路线与阶段交付条件](lelamp/vision/docs/ROADMAP.md)
+- [摄像头选型验证方案与结果模板](lelamp/vision/docs/CAMERA_EVALUATION.md)
+
+后续正式开发遵守以下边界：
 
 1. Vision 只负责采集和输出识别结果/目标位置，不直接写舵机。
-2. `LampApp` 提供 `start_tracking()`、`stop_tracking()`、`inspect_scene()` 等高层能力，并维护 tracking 持续状态。
+2. 后续按需通过 `LampApp` 提供跟踪启停、场景查看等高层能力，并维护 tracking 持续状态；具体接口等安装后确定，不将规划接口当作已有实现。
 3. tracking 的机械输出必须经过现有运动锁、`current_motion_task` 和 cancel flag；同一时刻只能有一个运动控制源。
 4. 临时动作结束后恢复 tracking；进入 WORK_LIGHT 时停止 tracking；sleep 统一终止 tracking 后进入机械休眠。
 5. Agent 只新增高层 Tool，不能看到摄像头线程、PID、舵机角度或串口参数。

@@ -6,8 +6,9 @@
 - [ ] 开发小灯视觉功能。
 - [ ] 开发“专注模式”
 - [ ] 开发todo快速记事功能
-- [ ] 开发health tool系统自检查功能
+- [x] 开发 health tool 系统一键自检（`uv run --no-sync -m lelamp.diagnostics`；物理效果仍需人工确认）
 - [ ] 尝试开发lelamp用website控制端
+- [ ] 解决TTS播报完之后的短暂延迟
 
 ## 详细执行方案
 
@@ -107,3 +108,17 @@ human_speech
 - Agent、ASR、TTS、Motion 不直接互相控制；`LampApp` 继续负责 `speaking` 与 `current_motion_task` 状态协调。
 - 不修改或覆盖用户动作 CSV、校准文件和姿态配置。
 - 未达到验收标准前，不接入正式 `lelamp.app`。
+
+### 开发小灯视觉功能
+
+当前仅完成最小目录、模块职责和开发路线文档；尚未准备视觉依赖、下载模型、编写程序或运行摄像头实验。
+
+- **第一阶段：摄像头选型验证。** 后续使用现有 UGREEN USB 摄像头，检查实际分辨率/帧率/像素格式、桌面视场和近距成像，独立验证候选算法及语音并行负载，形成最低需求、推荐参数和未验证项，作为购买依据。
+- **第二阶段：安装后再规划正式开发。** 新摄像头到货并安装、验证实际视角后，再确定正式接口、模型、频率和资源预算；逐步开发基础感知、人脸机械跟踪、静态手势控制，再扩展身份识别和动态手势。
+- MediaPipe Gesture Recognizer、YuNet、SFace 均为待验证候选；第一阶段不接入正式 app，不触发视觉动作控制，不预先决定购买型号。
+
+详细方案统一维护在视觉目录：
+
+- [视觉模块职责与当前状态](lelamp/vision/README.md)
+- [完整开发路线与阶段交付条件](lelamp/vision/docs/ROADMAP.md)
+- [摄像头选型验证执行方案及空白结果模板](lelamp/vision/docs/CAMERA_EVALUATION.md)

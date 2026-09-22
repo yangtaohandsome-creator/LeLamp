@@ -149,6 +149,8 @@ Barge-in 是 `voice/` 基础能力，不是 Agent Tool。实现位于 `lelamp/vo
 
 人脸机械跟踪已接入正式路径。`tracking_home`独立于standby和持久底座朝向，当前实测为base yaw 0、wrist pitch -45；设备本地`lelamp/motion/calibration/visual_response.json`保存双轴图像响应，条件数1.59。Motion以25 Hz运行最新目标闭环，包含死区、预测、限速、限加速度、软限位和过期停更。正式app无人运行41秒时视觉9.99 Hz、背景未误选、舵机命令0。真实前景人物的方向、平滑度、目标短失和临时动作恢复仍需现场验收。
 
+2026-09-22 修正腕部关节命名：物理 ID 4 对应 `wrist_pitch`，ID 5 对应 `wrist_roll`。Follower/Leader 映射、各自校准、5 组固定姿态和 16 份录制动作已成套迁移；逐帧检查确认迁移前后发送到两个物理舵机的原始目标值相同。上段记录的 `wrist pitch -45` 是修正前的旧名称，实际对应现在的 `wrist_roll -45`。旧 `visual_response.json` 测的是物理 ID 5，不能用于新 `wrist_pitch`；加载器会拒绝没有新 `controlled_motor_ids=[1,4]` 的结果。重新实机运行 `scripts/calibrate_visual_response.py` 并检查跟踪方向与软限位之前，不要启动人脸机械跟踪。
+
 正式架构已经确定：只使用现有`LampApp`，不建立第二个视觉app；摄像头只保留最新帧；视觉会话中人脸与手势同时以最高10 Hz运行；单人前景目标优先；face/hand只切换同一个tracking runner的机械关注目标。SFace正式激活逻辑暂缓。
 
 详细方案统一维护在视觉目录：

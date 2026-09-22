@@ -18,7 +18,7 @@ if str(ROOT) not in sys.path:
 
 from lelamp.motion.config import motion_port, tracking_home_action
 from lelamp.motion.controller import MotionController
-from lelamp.motion.visual_tracking import CALIBRATION_PATH, CONTROLLED_JOINTS
+from lelamp.motion.visual_tracking import CALIBRATION_PATH, CONTROLLED_JOINTS, CONTROLLED_MOTOR_IDS
 from lelamp.vision.camera import LatestFrameSource
 from lelamp.vision.config import load_vision_config
 
@@ -83,6 +83,11 @@ async def run(args: argparse.Namespace) -> None:
             raise RuntimeError(camera.health().get("error") or "摄像头启动失败")
         print(f"摄像头已就绪: {camera.health()['negotiated']}", flush=True)
         motion.connect()
+        actual_motor_ids = tuple(
+            motion.robot.bus.motors[joint].id for joint in CONTROLLED_JOINTS
+        )
+        if actual_motor_ids != CONTROLLED_MOTOR_IDS:
+            raise RuntimeError(f"跟踪关节映射不匹配: {actual_motor_ids}")
         initial = motion.read_action()
         home = tracking_home_action()
         await motion.move_tracking_raw(home, 1.0)
@@ -135,6 +140,7 @@ async def run(args: argparse.Namespace) -> None:
             "created_at": datetime.now(timezone.utc).isoformat(),
             "camera": camera.health()["negotiated"],
             "controlled_joints": list(CONTROLLED_JOINTS),
+            "controlled_motor_ids": list(actual_motor_ids),
             "home_action": home,
             "requested_delta": args.delta,
             "measured_positions": measured_positions,

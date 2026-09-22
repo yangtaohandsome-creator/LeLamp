@@ -18,6 +18,7 @@ CALIBRATION_PATH = (
     Path(__file__).resolve().parent / "calibration" / "visual_response.json"
 )
 CONTROLLED_JOINTS = ("base_yaw", "wrist_pitch")
+CONTROLLED_MOTOR_IDS = (1, 4)
 
 
 class TargetLike(Protocol):
@@ -71,11 +72,11 @@ def load_visual_tracking_config() -> VisualTrackingConfig:
         ]),
         minimum=np.array([
             _number("MOTION_TRACKING_MIN_BASE_YAW", -55),
-            _number("MOTION_TRACKING_MIN_WRIST_PITCH", -45),
+            _number("MOTION_TRACKING_MIN_WRIST_PITCH", 40),
         ]),
         maximum=np.array([
             _number("MOTION_TRACKING_MAX_BASE_YAW", 55),
-            _number("MOTION_TRACKING_MAX_WRIST_PITCH", 45),
+            _number("MOTION_TRACKING_MAX_WRIST_PITCH", 75),
         ]),
     )
     if not all(0.0 <= item <= 1.0 for item in (*config.setpoint, *config.deadzone)):
@@ -93,6 +94,12 @@ def load_response_matrix(path: Path = CALIBRATION_PATH) -> np.ndarray:
     joints = tuple(payload.get("controlled_joints", ()))
     if joints != CONTROLLED_JOINTS:
         raise ValueError(f"视觉标定关节不匹配: {joints}")
+    motor_ids = tuple(payload.get("controlled_motor_ids", ()))
+    if motor_ids != CONTROLLED_MOTOR_IDS:
+        raise ValueError(
+            f"视觉标定舵机映射不匹配: {motor_ids}，"
+            "需要在腕部关节映射修正后重新标定"
+        )
     response = np.asarray(payload.get("response_matrix"), dtype=np.float64)
     if response.shape != (2, 2) or not np.all(np.isfinite(response)):
         raise ValueError("视觉标定响应矩阵必须是有限的 2×2 数组")

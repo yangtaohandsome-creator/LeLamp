@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 import tempfile
 import threading
@@ -272,6 +273,22 @@ class FakeMotion:
 
 
 class VisualTrackingControlTests(unittest.IsolatedAsyncioTestCase):
+    def test_legacy_response_cannot_drive_remapped_wrist(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "visual_response.json"
+            payload = {
+                "controlled_joints": ["base_yaw", "wrist_pitch"],
+                "response_matrix": [[0.01, 0], [0, 0.01]],
+            }
+            path.write_text(json.dumps(payload))
+            with self.assertRaisesRegex(ValueError, "重新标定"):
+                load_response_matrix(path)
+            payload["controlled_motor_ids"] = [1, 4]
+            path.write_text(json.dumps(payload))
+            np.testing.assert_array_equal(
+                load_response_matrix(path), np.array([[0.01, 0], [0, 0.01]])
+            )
+
     def config(self):
         return VisualTrackingConfig(
             control_hz=50, feedback_hz=5, setpoint=(0.5, 0.42),

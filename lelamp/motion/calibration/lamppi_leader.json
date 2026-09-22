@@ -21,17 +21,17 @@
         "range_max": 3120
     },
     "wrist_roll": {
-        "id": 4,
-        "drive_mode": 0,
-        "homing_offset": -1859,
-        "range_min": 777,
-        "range_max": 3271
-    },
-    "wrist_pitch": {
         "id": 5,
         "drive_mode": 0,
         "homing_offset": -2036,
         "range_min": 851,
         "range_max": 3285
+    },
+    "wrist_pitch": {
+        "id": 4,
+        "drive_mode": 0,
+        "homing_offset": -1859,
+        "range_min": 777,
+        "range_max": 3271
     }
 }

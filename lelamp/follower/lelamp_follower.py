@@ -52,8 +52,8 @@ class LeLampFollower(Robot):
                 "base_yaw": Motor(1, "sts3215", norm_mode_body),
                 "base_pitch": Motor(2, "sts3215", norm_mode_body),
                 "elbow_pitch": Motor(3, "sts3215", norm_mode_body),
-                "wrist_roll": Motor(4, "sts3215", norm_mode_body),
-                "wrist_pitch": Motor(5, "sts3215", norm_mode_body),
+                "wrist_roll": Motor(5, "sts3215", norm_mode_body),
+                "wrist_pitch": Motor(4, "sts3215", norm_mode_body),
             },
             calibration=self.calibration,
         )

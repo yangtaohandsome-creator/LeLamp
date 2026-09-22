@@ -33,3 +33,7 @@ hardware = [
     "adafruit-circuitpython-neopixel",
     "rpi-ws281x",
 ]
+vision = [
+    "mediapipe>=1.0.1",
+    "opencv-python-headless>=5.0.0",
+]

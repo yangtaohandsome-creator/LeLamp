@@ -28,7 +28,7 @@ from .agent.common import AgentConnectionError
 from .agent.pi_service import PiAgentService
 from .control import ControlServer
 from .remote_text import RemoteTextServer
-from .tools import ToolExecutor
+from .tools import ToolExecutor, ToolSource
 from .timer import TimerManager, TimerSnapshot
 from .alarm import AlarmManager, AlarmSnapshot
 from .location import LocationError, resolve_location
@@ -176,9 +176,8 @@ async def run_voice(app) -> None:
         nonlocal stream, pending_noise_levels
         nonlocal sleep_after_barge_in, pending_barge_in
         pause_capture()
-        # WORK_LIGHT is a persistent user mode: a voice timeout only resets
-        # the conversation and keeps the desk illumination running.
-        if force_sleep or app.current_mode != "work_light":
+        await app.set_voice_session_active(False)
+        if force_sleep or not app.keeps_mode_after_voice_timeout():
             app.light_state("session_end")
             try:
                 await app.sleep()
@@ -204,6 +203,7 @@ async def run_voice(app) -> None:
         while True:
             if pending_barge_in is not None and not conversation_active:
                 conversation_active = True
+                await app.set_voice_session_active(True)
                 conversation_id = uuid.uuid4().hex
                 conversation_turns = 0
                 conversation_deadline = time.monotonic() + env_float(
@@ -227,6 +227,7 @@ async def run_voice(app) -> None:
                     continue
                 spotter.reset_stream(stream)
                 conversation_active = True
+                await app.set_voice_session_active(True)
                 conversation_id = uuid.uuid4().hex
                 conversation_turns = 0
                 preconnect_tts()
@@ -240,7 +241,7 @@ async def run_voice(app) -> None:
                     )
                     await play_pending_announcements()
                 try:
-                    await app.enter_standby()
+                    await app.prepare_for_voice_session()
                 except Exception as exc:
                     app.light_state("error")
                     print(f"待机姿态失败: {exc}", file=sys.stderr, flush=True)
@@ -429,18 +430,26 @@ async def run_voice(app) -> None:
 
 class LampApp:
     """Application coordination; all app motion sources enter through this object."""
-    def __init__(self, motion=None, lighting=None, sound_player=None):
+    def __init__(self, motion=None, lighting=None, sound_player=None, vision=None):
         from .motion.controller import MotionController
+        from .motion.config import motion_port
         from .lighting.controller import LightingController
         self.motion = motion or MotionController(
-            port=os.getenv("MOTION_PORT", "/dev/ttyACM0"),
+            port=motion_port(),
             lamp_id=os.getenv("MOTION_LAMP_ID", "lamppi"),
         )
         self.lighting = lighting or LightingController()
         self.sound_player = sound_player or SoundPlayer()
+        if vision is None:
+            from .vision import VisionController
+            vision = VisionController()
+        self.vision = vision
+        self._started = False
+        self.voice_session_active = False
         self.current_mode = "normal"
         self.current_motion_task = None
         self.tracking = False
+        self._visual_tracking_runner = None
         self.speaking = False
         self._motion_lock = asyncio.Lock()
         self._interaction_lock = asyncio.Lock()
@@ -477,6 +486,38 @@ class LampApp:
         await self.announcements.start()
         await self.alarms.start()
         await asyncio.to_thread(self.barge_in.prepare)
+        self._started = True
+        await self._sync_vision_lifecycle()
+
+    def keeps_mode_after_voice_timeout(self) -> bool:
+        return self.current_mode in {"tracking", "work_light"}
+
+    async def prepare_for_voice_session(self) -> None:
+        if self.current_mode not in {"tracking", "work_light"}:
+            await self.enter_standby()
+
+    async def set_voice_session_active(self, active: bool) -> None:
+        self.voice_session_active = bool(active)
+        await self._sync_vision_lifecycle()
+
+    def _vision_should_run(self) -> bool:
+        return self.voice_session_active or self.current_mode in {
+            "tracking", "work_light"
+        }
+
+    async def _sync_vision_lifecycle(self) -> None:
+        if not self._started:
+            return
+        if self._vision_should_run():
+            self.vision.start()
+        else:
+            await asyncio.to_thread(self.vision.stop)
+
+    def get_vision_state(self) -> dict:
+        state = self.vision.state()
+        runner = self._visual_tracking_runner
+        state["motion_tracking"] = dict(runner.state) if runner is not None else None
+        return state
 
     async def _on_timer_complete(self, timer: TimerSnapshot) -> None:
         """Turn a hardware-neutral Timer completion into one speech event."""
@@ -613,7 +654,9 @@ class LampApp:
                 tool_name = str(action.get("tool", ""))
                 arguments = action.get("arguments", {})
                 try:
-                    outcome = await self.tools.execute(tool_name, arguments)
+                    outcome = await self.tools.execute(
+                        tool_name, arguments, source=ToolSource.SCHEDULED
+                    )
                     if outcome.status == "shutdown_requested":
                         self.consume_shutdown_request()
                         sleep_after = True
@@ -825,6 +868,7 @@ class LampApp:
             self._mode_runner = None
             await self.motion.standby()
             self.mechanically_asleep = False
+        await self._sync_vision_lifecycle()
 
     async def enter_work_light(self, pose="high", tone="white"):
         if pose not in ("high", "low"):
@@ -847,6 +891,7 @@ class LampApp:
                 self.work_brightness,
                 self._work_light_fade_seconds(),
             )
+        await self._sync_vision_lifecycle()
 
     async def update_work_light(self, pose=None, tone=None, brightness_step=None):
         if self.current_mode != "work_light":
@@ -897,7 +942,8 @@ class LampApp:
             self.work_brightness = 75
             await self.motion.standby()
             self.mechanically_asleep = False
-            return True
+        await self._sync_vision_lifecycle()
+        return True
 
     @staticmethod
     def _work_light_fade_seconds():
@@ -932,11 +978,13 @@ class LampApp:
             task = self.current_motion_task
         # Tracking is long-lived; mode selection should return once it is started.
         # Persistent modes return once their runner has started.
+        await self._sync_vision_lifecycle()
 
     async def sleep(self):
         async with self._motion_lock:
             if self.mechanically_asleep:
                 return
+            self.voice_session_active = False
             self._mode_version += 1
             await self._stop_motion()
             if self.current_mode == "work_light":
@@ -948,10 +996,21 @@ class LampApp:
             self._mode_runner = None
             await self.motion.sleep()
             self.mechanically_asleep = True
+        await self._sync_vision_lifecycle()
 
     async def stop_tracking(self):
         if self.current_mode == "tracking":
             await self.set_mode("normal")
+
+    async def start_face_tracking(self):
+        """Enter the persistent face-tracking mode through app arbitration."""
+        from .motion.visual_tracking import VisualTrackingRunner
+
+        runner = VisualTrackingRunner(
+            self.motion, self.vision.latest_tracking_target
+        )
+        self._visual_tracking_runner = runner
+        await self.set_mode("tracking", runner.run)
 
     def set_light(self, color=(255, 255, 255), brightness=255):
         self.lighting.set_light(color, brightness)
@@ -1119,6 +1178,7 @@ class LampApp:
             base_heading_position = "right"
         else:
             base_heading_position = "front"
+        vision_state = self.get_vision_state()
         return {
             "current_mode": self.current_mode,
             "motion_active": bool(
@@ -1126,6 +1186,21 @@ class LampApp:
                 and not self.current_motion_task.done()
             ),
             "tracking": self.tracking,
+            "voice_session_active": self.voice_session_active,
+            "vision_running": vision_state["running"],
+            "vision_status": vision_state["status"],
+            "vision_target_visible": bool(
+                vision_state.get("tracking_target", {}).get("visible")
+                if vision_state.get("tracking_target") else False
+            ),
+            "vision_target_id": (
+                vision_state["tracking_target"]["track_id"]
+                if vision_state.get("tracking_target") else None
+            ),
+            "vision_target_age_ms": (
+                vision_state["tracking_target"]["age_ms"]
+                if vision_state.get("tracking_target") else None
+            ),
             "speaking": self.speaking,
             "mechanically_asleep": self.mechanically_asleep,
             "base_heading_degrees": self.base_heading_degrees,
@@ -1142,16 +1217,28 @@ class LampApp:
         self.clear_pending_expression()
         command = match_local_command(text)
         if command in ("nod", "headshake"):
-            await self.tools.execute("play_motion", {"name": command})
+            await self.tools.execute(
+                "play_motion", {"name": command}, source=ToolSource.LOCAL_VOICE
+            )
             return ActionResult("点完了。" if command == "nod" else "摇完了。")
         if command == "sleep":
-            outcome = await self.tools.execute("sleep", {"reason": "user_request"})
+            outcome = await self.tools.execute(
+                "sleep", {"reason": "user_request"},
+                source=ToolSource.LOCAL_VOICE,
+            )
             self.consume_shutdown_request()
             return ActionResult("歇一会儿，有事叫我。", outcome.status)
         if command == "stop_tracking":
-            outcome = await self.tools.execute("stop_tracking")
+            outcome = await self.tools.execute(
+                "stop_tracking", source=ToolSource.LOCAL_VOICE
+            )
             return ActionResult(outcome.message + "。")
-        if command in ("tracking", "reading"):
+        if command == "tracking":
+            outcome = await self.tools.execute(
+                "start_face_tracking", source=ToolSource.LOCAL_VOICE
+            )
+            return ActionResult(outcome.message + "。")
+        if command == "reading":
             return ActionResult("这个功能还没接好。")
         turn_id = uuid.uuid4().hex
         self._active_agent_turn_id = turn_id
@@ -1214,16 +1301,20 @@ class LampApp:
         )
 
     async def close(self):
+        self._started = False
         try:
-            await self.timers.close()
-            await self.alarms.close()
-            await self.announcements.close()
-            if self.motion.robot is not None:
-                await self.sleep()
+            await asyncio.to_thread(self.vision.stop)
         finally:
-            close_tts()
-            self.motion.close()
-            self.lighting.close()
+            try:
+                await self.timers.close()
+                await self.alarms.close()
+                await self.announcements.close()
+                if self.motion.robot is not None:
+                    await self.sleep()
+            finally:
+                close_tts()
+                self.motion.close()
+                self.lighting.close()
 
 
 def match_local_command(text):

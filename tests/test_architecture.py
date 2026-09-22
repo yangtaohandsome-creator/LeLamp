@@ -13,6 +13,7 @@ from lelamp.voice.vad import capture_utterance
 from lelamp.voice.config import has_meaningful_text
 from lelamp.motion.controller import MotionController
 from lelamp.voice.announcement import AnnouncementPriority
+from lelamp.tools import ToolSource
 
 
 class FakeMotion:
@@ -224,7 +225,9 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
     async def test_local_motion_does_not_consume_stale_agent_expression(self):
         motion = FakeMotion()
         app = LampApp(motion=motion, lighting=FakeLighting())
-        rejected = await app.tools.execute("queue_expression", {"name": "nod"})
+        rejected = await app.tools.execute(
+            "queue_expression", {"name": "nod"}, source=ToolSource.AGENT
+        )
         self.assertFalse(rejected.data["queued"])
         app._pending_expression = ("expired-turn", "nod")
 
@@ -348,7 +351,9 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
         app = LampApp(motion=motion, lighting=FakeLighting())
 
         async def agent_reply(_text, _session_id):
-            outcome = await app.tools.execute("queue_expression", {"name": "curious"})
+            outcome = await app.tools.execute(
+                "queue_expression", {"name": "curious"}, source=ToolSource.AGENT
+            )
             self.assertTrue(outcome.data["queued"])
             return "这事有点奇怪。"
 
@@ -378,7 +383,9 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
         app = LampApp(motion=motion, lighting=FakeLighting())
 
         async def agent_reply(_text, _session_id):
-            outcome = await app.tools.execute("play_motion", {"name": "happy_wiggle"})
+            outcome = await app.tools.execute(
+                "play_motion", {"name": "happy_wiggle"}, source=ToolSource.AGENT
+            )
             self.assertTrue(outcome.data["queued"])
             self.assertEqual(motion.events, [])
             return "这确实是个好消息。"
@@ -400,10 +407,27 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(motion.events, ["play:happy_wiggle", "play:stopped", "standby"])
         await app.announcements.close()
 
+    async def test_vision_motion_is_not_treated_as_agent_expression(self):
+        motion = FakeMotion()
+        app = LampApp(motion=motion, lighting=FakeLighting())
+        app._agent_turn_text = "这真让人开心"
+
+        outcome = await app.tools.execute(
+            "play_motion", {"name": "happy_wiggle"}, source=ToolSource.VISION
+        )
+
+        self.assertFalse(outcome.data.get("queued", False))
+        self.assertEqual(
+            motion.events, ["play:happy_wiggle", "play:stopped", "standby"]
+        )
+        self.assertIsNone(app._pending_expression)
+
     async def test_work_light_rejects_automatic_expression(self):
         app = LampApp(motion=FakeMotion(), lighting=FakeLighting())
         await app.enter_work_light()
-        outcome = await app.tools.execute("queue_expression", {"name": "happy_wiggle"})
+        outcome = await app.tools.execute(
+            "queue_expression", {"name": "happy_wiggle"}, source=ToolSource.AGENT
+        )
         self.assertFalse(outcome.data["queued"])
         self.assertIsNone(app._pending_expression)
 

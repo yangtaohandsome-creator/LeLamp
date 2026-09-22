@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -19,6 +20,14 @@ class ToolOutcome:
                 "status": self.status, "message": self.message, "data": self.data}
 
 
+class ToolSource(StrEnum):
+    AGENT = "agent"
+    LOCAL_VOICE = "local_voice"
+    VISION = "vision"
+    SCHEDULED = "scheduled"
+    CONTROL_API = "control_api"
+
+
 class ToolExecutor:
     """The only public path from intent sources into coordinated app actions."""
 
@@ -31,6 +40,7 @@ class ToolExecutor:
     SCHEDULED_TOOLS = {
         "play_motion", "set_light", "enter_work_light",
         "update_work_light", "exit_work_light", "sleep", "stop_tracking",
+        "start_face_tracking",
         "turn_base", "reset_base_heading",
         "set_base_heading",
     }
@@ -38,8 +48,10 @@ class ToolExecutor:
     def __init__(self, app: "LampApp") -> None:
         self.app = app
 
-    def _callback_info(self, args: dict[str, Any]) -> dict[str, Any]:
-        callback_info: dict[str, Any] = {"source": "agent"}
+    def _callback_info(
+        self, args: dict[str, Any], source: ToolSource
+    ) -> dict[str, Any]:
+        callback_info: dict[str, Any] = {"source": source.value}
         on_complete = args.get("on_complete")
         agent_task = str(args.get("agent_task", "")).strip()
         if on_complete is not None and agent_task:
@@ -58,13 +70,23 @@ class ToolExecutor:
             callback_info["agent_task"] = agent_task
         return callback_info
 
-    async def execute(self, name: str, arguments: dict[str, Any] | None = None) -> ToolOutcome:
+    async def execute(
+        self,
+        name: str,
+        arguments: dict[str, Any] | None = None,
+        *,
+        source: ToolSource | str = ToolSource.CONTROL_API,
+    ) -> ToolOutcome:
+        try:
+            source = ToolSource(source)
+        except ValueError as exc:
+            raise ValueError(f"未知工具调用来源: {source}") from exc
         args = arguments or {}
         if name == "create_timer":
             duration = args.get("duration_seconds", 0)
             message = str(args.get("message", ""))
             timer = await self.app.timers.create_timer(
-                duration, message, self._callback_info(args)
+                duration, message, self._callback_info(args, source)
             )
             return ToolOutcome("completed", "计时器已创建", timer.as_dict())
 
@@ -73,7 +95,7 @@ class ToolExecutor:
                 str(args.get("trigger_at", "")),
                 str(args.get("message", "")),
                 str(args.get("recurrence", "once")),
-                self._callback_info(args),
+                self._callback_info(args, source),
                 args.get("day_of_week"),
             )
             return ToolOutcome("completed", "闹钟已创建", alarm.as_dict())
@@ -128,7 +150,7 @@ class ToolExecutor:
             motion = str(args.get("name", ""))
             if motion not in self.MOTIONS:
                 raise ValueError(f"不支持的动作: {motion}")
-            if self.app.should_defer_agent_motion(motion):
+            if source is ToolSource.AGENT and self.app.should_defer_agent_motion(motion):
                 queued, reason = self.app.queue_expression(motion)
                 return ToolOutcome(
                     "completed",
@@ -166,6 +188,8 @@ class ToolExecutor:
             )
 
         if name == "queue_expression":
+            if source is not ToolSource.AGENT:
+                raise ValueError("queue_expression 只允许 Agent 自主表达调用")
             expression = str(args.get("name", ""))
             if expression not in self.EXPRESSIONS:
                 raise ValueError(f"不支持的情绪动作: {expression}")
@@ -238,6 +262,11 @@ class ToolExecutor:
         if name == "get_robot_state":
             return ToolOutcome("completed", "状态读取成功", self.app.get_robot_state())
 
+        if name == "get_vision_state":
+            return ToolOutcome(
+                "completed", "视觉状态读取成功", self.app.get_vision_state()
+            )
+
         if name == "get_system_health":
             from .diagnostics import run_live
             return ToolOutcome("completed", "只读自检完成", await run_live(self.app))
@@ -249,6 +278,12 @@ class ToolExecutor:
                 "completed",
                 "跟踪已停止" if was_tracking else "当前没有运行跟踪",
                 {"was_tracking": was_tracking},
+            )
+
+        if name == "start_face_tracking":
+            await self.app.start_face_tracking()
+            return ToolOutcome(
+                "completed", "已开始人脸跟踪", {"mode": "tracking"}
             )
 
         raise ValueError(f"未知工具: {name}")

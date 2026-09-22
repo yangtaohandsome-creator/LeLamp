@@ -10,6 +10,7 @@ from .config import (
     startup_transition_seconds, transition_fps, sleep_action,
     sleep_transition_seconds, sleep_hold_seconds, standby_action,
     work_transition_seconds, reading_action, reading_low_action,
+    tracking_home_action, tracking_home_transition_seconds,
 )
 
 RECORDINGS_DIR = Path(__file__).resolve().parents[1] / "recordings"
@@ -135,6 +136,29 @@ class MotionController:
         duration = work_transition_seconds() if transition_seconds is None else transition_seconds
         await self.move_to(target, duration)
         print(f"已进入办公照明姿态（{pose}），舵机扭矩保持。", flush=True)
+
+    async def tracking_home(self, transition_seconds=None):
+        """Enter the camera-forward tracking neutral without saved base heading."""
+        duration = (
+            tracking_home_transition_seconds()
+            if transition_seconds is None else transition_seconds
+        )
+        await self._move_to_target(tracking_home_action(), duration)
+        print("已进入视觉跟踪初始姿态，舵机扭矩保持。", flush=True)
+
+    def read_action(self):
+        """Read calibrated joint positions for the single active motion owner."""
+        self.connect()
+        return read_current_action(self.robot)
+
+    def send_tracking_action(self, action):
+        """Send one raw tracking command; callers own limits and cadence."""
+        self.connect()
+        self.robot.send_action(action)
+
+    async def move_tracking_raw(self, action, duration):
+        """Move to an absolute calibrated action for visual calibration only."""
+        await self._move_to_target(dict(action), duration)
 
     def close(self):
         try:

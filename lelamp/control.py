@@ -7,7 +7,7 @@ from typing import Any
 
 from aiohttp import web
 
-from .tools import ToolExecutor
+from .tools import ToolExecutor, ToolSource
 
 
 class ControlServer:
@@ -35,7 +35,9 @@ class ControlServer:
             body: Any = await request.json()
             if not isinstance(body, dict):
                 raise ValueError("请求体必须是 JSON 对象")
-            outcome = await self.tools.execute(request.match_info["name"], body)
+            outcome = await self.tools.execute(
+                request.match_info["name"], body, source=ToolSource.AGENT
+            )
             return web.json_response(outcome.as_dict())
         except ValueError as exc:
             return web.json_response({"status": "invalid", "message": str(exc)}, status=400)

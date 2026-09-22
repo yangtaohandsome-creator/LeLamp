@@ -13,6 +13,11 @@ def load_motion_config() -> None:
     load_dotenv(CONFIG_PATH, override=True)
 
 
+def motion_port() -> str:
+    load_motion_config()
+    return os.getenv("MOTION_PORT", "/dev/ttyACM0")
+
+
 def startup_transition_seconds() -> float:
     load_motion_config()
     return max(0.0, float(os.getenv("MOTION_STARTUP_TRANSITION_SECONDS", "3.0")))
@@ -41,6 +46,11 @@ def sleep_hold_seconds() -> float:
 def work_transition_seconds() -> float:
     load_motion_config()
     return max(0.0, float(os.getenv("MOTION_WORK_TRANSITION_SECONDS", "1.5")))
+
+
+def tracking_home_transition_seconds() -> float:
+    load_motion_config()
+    return max(0.0, float(os.getenv("MOTION_TRACKING_HOME_TRANSITION_SECONDS", "1.0")))
 
 
 def base_yaw_step_degrees() -> float:
@@ -83,6 +93,16 @@ def standby_action() -> Dict[str, float]:
     motors = ("base_yaw", "base_pitch", "elbow_pitch", "wrist_roll", "wrist_pitch")
     return {f"{motor}.pos": float(os.environ[f"MOTION_STANDBY_{motor.upper()}"])
             for motor in motors}
+
+
+def tracking_home_action() -> Dict[str, float]:
+    """Return the camera-forward neutral used only by visual tracking."""
+    load_motion_config()
+    motors = ("base_yaw", "base_pitch", "elbow_pitch", "wrist_roll", "wrist_pitch")
+    return {
+        f"{motor}.pos": float(os.environ[f"MOTION_TRACKING_HOME_{motor.upper()}"])
+        for motor in motors
+    }
 
 
 def reading_action() -> Dict[str, float]:

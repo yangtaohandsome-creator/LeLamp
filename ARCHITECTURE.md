@@ -10,7 +10,7 @@
 | lelamp/audio/ | 本地短提示音解析与 ALSA 播放；不判断业务场景 |
 | lelamp/motion/ | 配置、可取消播放、睡眠、录制 |
 | lelamp/lighting/ | RGB 驱动、语音状态灯效和持续 WORK_LIGHT 照明 |
-| lelamp/vision/ | 目录与职责说明，实际视觉功能尚未实现 |
+| lelamp/vision/ | 已实现单一最新帧采集、YuNet/MediaPipe联合感知、生命周期、单人目标保持和只读健康状态；机械跟踪待开发 |
 | lelamp/timer/ | 独立的内存多计时器；只管理时间与完成事件，不依赖硬件或具体模式 |
 | lelamp/alarm/ | 持久化绝对时间提醒；支持单次、每天、工作日和每周指定星期，不依赖硬件或具体模式 |
 | lelamp/location.py | 应用启动时刷新公网 IP 城市与 IANA 时区配置；成功则覆盖持久配置，失败则复用上次结果；不作为 Agent Tool，不参与功能仲裁 |
@@ -25,7 +25,7 @@
 - voice.conf、motion.conf、.env 和根目录人格文件仍按原位置读取。用户录制、校准、模型不迁移、不覆盖。
 - 睡眠姿态仅在 motion.conf 中维护；播放与机械睡眠分开。普通临时动作回待机或恢复原持续模式，不自行睡眠。
 - 原 AnimationService 构造参数保留，缓动时间统一由 motion.conf 控制。
-- sleep 是机械休眠的统一出口：会话超时、明确睡眠指令、独立 replay 正常完成和应用正常退出才会调用。睡眠后程序与 KWS 继续运行，再次唤醒会平滑进入待机姿态。
+- sleep 是机械休眠的统一出口：普通模式会话超时、明确睡眠指令、独立 replay 正常完成和应用正常退出才会调用。tracking和现有WORK_LIGHT一样，语音会话超时只结束会话并保留持续模式；再次唤醒只建立新语音会话，不破坏原姿态。睡眠后程序与 KWS 继续运行，再次唤醒会平滑进入待机姿态。
 - 运动任务失败或取消后不自动立即释放扭矩；正常睡眠才释放。关闭语音应用会取消运动并尝试睡眠。
 - WORK_LIGHT 由 app 持有姿态、色调和亮度状态；办公模式中的语音状态灯效被屏蔽，语音超时不收灯。所有办公灯调整通过 OpenClaw 高层 Tool 进入 app。
 - Agent 自主情绪通过 `queue_expression` 每轮最多登记一个高层动作；app 在 TTS 第一块音频开始播放时执行动作，结束后恢复原持续模式。用户明确要求的动作仍走即时 `play_motion`。办公照明默认拒绝自主情绪动作。
@@ -39,7 +39,7 @@
 
 ## 后续能力边界
 
-app 的 set_mode 接收模式及其执行协程，临时动作结束后恢复该协程。tracking、reading 的交接与恢复已用模拟任务测试，实际摄像头跟踪和阅读姿态尚未实现。
+app 的 set_mode 接收模式及其执行协程，临时动作结束后恢复该协程。人脸tracking已使用同一长期任务接入图像闭环和Motion流式控制；reading尚未实现。正式视觉设计见`lelamp/vision/docs/VISION_DESIGN.md`；WORK_LIGHT将长期保留手势感知，手部引导作为其内部子状态复用统一运动仲裁。
 
 OpenClaw 与 Pi Agent Core 通过统一薄接口接入，并由 `AGENT_BACKEND` 选择。当前正式后端为 Pi Agent + DeepSeek `deepseek-flash`；两者均调用相同模型接口契约和高层 Control API，不能绕过 app 写舵机。切换 Agent 不改变语音、动作、灯光、Timer、Alarm 或播报队列。
 

@@ -141,24 +141,34 @@ Barge-in 是 `voice/` 基础能力，不是 Agent Tool。实现位于 `lelamp/vo
 
 ## 下一步：视觉开发
 
-`lelamp/vision/` 已完成最小目录和路线文档，尚未准备视觉依赖、下载模型、编写视觉程序或运行摄像头实验；摄像头、人脸和手势能力均未实现。
+摄像头选型、独立依赖环境、YuNet、MediaPipe Gesture Recognizer、SFace链路及30分钟app并行负载测试已经完成。正式摄像头为固定在灯头上的IMX179 USB UVC摄像头；采集基线为640×480@30 FPS MJPEG，固定安装画面逆时针转正90°后的模型输入为240×320。
 
-第一阶段先用现有 UGREEN USB 摄像头独立验证选型需求，交付购买依据，不接入正式 app、不触发视觉动作控制。第二阶段等新摄像头到货、安装并验证实际视角后，再细化正式设计与开发。MediaPipe Gesture Recognizer、YuNet、SFace 是待验证候选，不是既定依赖。
+2026-09-21 已完成第一批正式视觉代码：`vision.conf`、正式数据契约、单一最新帧采集、YuNet/MediaPipe同源联合调度、`VisionController`生命周期、只读状态与健康信息均已接入`LampApp`。视觉在语音会话和WORK_LIGHT中运行，普通等待唤醒与sleep时释放摄像头；当前不发送舵机命令、不执行手势副作用。Pi5正式环境实测10.0 Hz，推理P50/P95为38.8/39.8 ms，摄像头读取失败0。
+
+同日已增加`target.py`：按归一化人脸面积筛除背景小脸控制候选，使用预测位置、IoU和尺寸变化关联当前前景目标；新出现的人脸不会立即抢占，目标短时丢失时保留ID并在250 ms后拒绝向Motion提供旧结果，1.2秒后才释放选择权。
+
+人脸机械跟踪已接入正式路径。`tracking_home`独立于standby和持久底座朝向，当前实测为base yaw 0、wrist pitch -45；设备本地`lelamp/motion/calibration/visual_response.json`保存双轴图像响应，条件数1.59。Motion以25 Hz运行最新目标闭环，包含死区、预测、限速、限加速度、软限位和过期停更。正式app无人运行41秒时视觉9.99 Hz、背景未误选、舵机命令0。真实前景人物的方向、平滑度、目标短失和临时动作恢复仍需现场验收。
+
+正式架构已经确定：只使用现有`LampApp`，不建立第二个视觉app；摄像头只保留最新帧；视觉会话中人脸与手势同时以最高10 Hz运行；单人前景目标优先；face/hand只切换同一个tracking runner的机械关注目标。SFace正式激活逻辑暂缓。
 
 详细方案统一维护在视觉目录：
 
 - [模块职责与目录导航](lelamp/vision/README.md)
-- [开发路线与阶段交付条件](lelamp/vision/docs/ROADMAP.md)
-- [摄像头选型验证方案与结果模板](lelamp/vision/docs/CAMERA_EVALUATION.md)
+- [视觉功能设计与开发准则](lelamp/vision/docs/VISION_DESIGN.md)
+- [当前开发路线](lelamp/vision/docs/ROADMAP.md)
+- [历史摄像头选型验证方案](lelamp/vision/docs/CAMERA_EVALUATION.md)
 
 后续正式开发遵守以下边界：
 
-1. Vision 只负责采集和输出识别结果/目标位置，不直接写舵机。
-2. 后续按需通过 `LampApp` 提供跟踪启停、场景查看等高层能力，并维护 tracking 持续状态；具体接口等安装后确定，不将规划接口当作已有实现。
-3. tracking 的机械输出必须经过现有运动锁、`current_motion_task` 和 cancel flag；同一时刻只能有一个运动控制源。
-4. 临时动作结束后恢复 tracking；进入 WORK_LIGHT 时停止 tracking；sleep 统一终止 tracking 后进入机械休眠。
-5. Agent 只新增高层 Tool，不能看到摄像头线程、PID、舵机角度或串口参数。
-6. 先做独立摄像头/识别测试，再接 `LampApp`；不要一开始搭建复杂视觉服务。
+1. Vision只负责采集、识别、短期目标保持和输出结果，不直接写舵机。
+2. tracking机械输出必须经过现有运动锁、`current_motion_task`和取消等待；同一时刻只能有一个运动控制源。
+3. 语音会话超时与机械持续模式分离：复用WORK_LIGHT语义让tracking继续运行，再次唤醒只建立语音会话、不进入standby；明确sleep终止tracking。
+4. 长期tracking任务在Barge-in中按运动状态处理，继续复用`current_motion_task`门控；不要按瞬时关节静止切回自然VAD。
+5. `ToolExecutor`调用必须携带`agent`、`local_voice`、`vision`、`scheduled`或`control_api`等来源，避免视觉动作被误判为Agent情绪动作。
+6. 临时动作期间丢弃tracking请求和手势事件，恢复后重新确认；WORK_LIGHT长期保留手势感知，并在内部支持手部引导和自定义照明姿态。
+7. Agent和网页只使用高层能力，不能看到摄像头线程、控制器增益、关节目标或串口参数。
+
+视觉设计文档和项目架构记录的是当前最佳方案，允许按后续实测和用户要求更新；变更时要同步修正文档和实现，不能机械执行已经过时的条目。
 
 ## 下一步：网页开发
 

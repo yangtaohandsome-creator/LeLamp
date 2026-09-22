@@ -180,6 +180,23 @@ async def run_live(app) -> dict:
     checks.append(_check("alarm", "ok" if app.alarms._started and not app.alarms._closed else "failed", "Alarm 调度已启动" if app.alarms._started and not app.alarms._closed else "Alarm 调度未运行"))
     worker = app.announcements._worker
     checks.append(_check("announcement", "ok" if worker is not None and not worker.done() else "failed", "播报队列消费者运行中" if worker is not None and not worker.done() else "播报队列消费者已停止"))
+    vision = app.get_vision_state()
+    vision_status = vision["status"]
+    if not vision["enabled"]:
+        checks.append(_check("vision", "unknown", "视觉功能已在配置中关闭"))
+    elif vision_status == "error":
+        checks.append(_check(
+            "vision", "warning", f"视觉初始化或运行失败: {vision['error']}",
+            "检查摄像头、模型路径和视觉依赖",
+        ))
+    elif vision["requested"]:
+        checks.append(_check(
+            "vision", "ok" if vision["running"] else "warning",
+            f"视觉状态: {vision_status}；完成频率: {vision['inference_hz']} Hz",
+            "稍后重试或检查摄像头" if not vision["running"] else "",
+        ))
+    else:
+        checks.append(_check("vision", "ok", "当前模式无需视觉，摄像头已释放"))
     light_status = "failed" if app.lighting._unavailable else "ok" if app.lighting._rgb is not None else "unknown"
     checks.append(_check("lighting_driver", light_status, "灯光驱动初始化失败" if light_status == "failed" else "灯光驱动已初始化；实际发光需人工确认" if light_status == "ok" else "灯光驱动尚未初始化", "检查驱动和灯板接线" if light_status == "failed" else ""))
     checks.append(_check("physical_output", "unknown", "未实测扬声器、灯板亮度、实际关节角度或扭矩", "需要人工观察；自检不会播放或移动"))

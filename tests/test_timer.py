@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 from lelamp.app import LampApp
 from lelamp.timer import TimerManager, TimerStatus
+from lelamp.tools import ToolSource
 
 
 class TimerManagerTests(unittest.IsolatedAsyncioTestCase):
@@ -131,7 +132,9 @@ class TimerAppTests(unittest.IsolatedAsyncioTestCase):
             app, "_speak_now", new=AsyncMock(return_value=(0, 0, 0))
         ) as speak:
             await app.drain_announcements()
-        action.assert_awaited_once_with("exit_work_light", {})
+        action.assert_awaited_once_with(
+            "exit_work_light", {}, source=ToolSource.SCHEDULED
+        )
         speak.assert_awaited_once_with("办公照明已退出。", None)
         await app.timers.close()
         await app.announcements.close()

@@ -1,0 +1,810 @@
+# LeLamp 常用测试与动作命令（lamppi）
+
+更新：2026-09-22。按新架构入口整理；本文件在项目根目录、runtime 和 Pi5 保持一致。
+
+> **密钥位置**：本文件不写任何 API Key / Token 明文，所有凭据统一存放在本机的 [LELAMP_SECRETS.local.md](../LELAMP_SECRETS.local.md)。
+> 该文件不在 Git 仓库内，所以在 GitHub 网页上这个链接打不开——这是有意的，不是坏链。
+
+## 1. 固定配置与进入项目
+
+### 一键只读自检
+
+在 Pi5 的 `~/lelamp_runtime` 运行：
+
+```bash
+uv run --no-sync -m lelamp.diagnostics
+```
+
+自检不会发声、移动舵机或重启服务。`--json` 输出结构化结果；`--mic` 提示说一句话并检查现有采音流的音量变化；`--deep agent`、`--deep asr`、`--deep tts` 或 `--deep all` 会向相应服务发送无声测试请求。退出码 0 为未发现软件故障、1 为警告、2 为异常。灯板是否真实发光、扬声器是否真实出声和实际关节扭矩仍需人工确认。运行中的 app 通过 `POST /v1/tools/get_system_health` 提供同一份报告，使用原有 Control API Bearer Token。
+
+| 项目 | 当前值 |
+| --- | --- |
+| SSH | `lamppi@192.168.40.77` |
+| 项目目录 | `/home/lamppi/lelamp_runtime` |
+| 灯的 ID | `lamppi` |
+| 舵机串口 | `/dev/ttyACM0` |
+| 默认声卡 | `seeed2micvoicec` |
+| RGB | Pi 5 专用驱动，GPIO12，64 颗 LED |
+
+灯 ID 已根据现有的 follower、leader 校准文件 `lamppi.json` 确认，不是仅按用户名猜测。
+
+在电脑上连接：
+
+```bash
+ssh lamppi@192.168.40.77
+```
+
+登录后先执行一次；以下测试命令均在这个目录运行：
+
+```bash
+cd /home/lamppi/lelamp_runtime
+```
+
+`--no-sync` 使用已经安装好的环境，不在每次测试时重新同步依赖。普通命令无需 sudo。Pi5 已为 `/dev/ws281x_pwm` 配置 `gpio` 组权限，RGB 状态灯和 RGB 测试可直接由 `lamppi` 用户运行。
+
+### 新架构命令对应关系
+
+| 功能 | 当前入口 |
+| --- | --- |
+| 完整语音与台灯应用 | `lelamp.app` |
+| 录制 | `lelamp.motion.record` |
+| 回放 | `lelamp.replay`（内部已接入 app/Motion） |
+| 睡眠 | `lelamp.sleep`（内部已接入 app/Motion） |
+| 音频、RGB、舵机、VAD 测试 | 原 `lelamp.test.*` 入口继续使用 |
+| 校准、居中、列出动作 | 原维护命令继续使用 |
+
+`lelamp.voice_assistant` 和 `lelamp.record` 保留兼容；以下启动和录制示例统一使用新入口。不要直接执行 `motion.controller` 等实现模块，它们没有命令行入口。
+
+### 视觉跟随验收与手部距离标定
+
+在 Pi5 已连接显示器时，启动实时画面、检测框、手势结果和机械跟随：
+
+```bash
+DISPLAY=:0 .venv/bin/python -u scripts/vision_preview.py --follow
+```
+
+预览脚本会在创建窗口后自动关闭当前Xorg会话的屏保、画面空白和DPMS省电，避免无键鼠输入时HDMI自动黑屏。Pi5需安装系统包`x11-xserver-utils`；该设置会在每次启动预览时重新应用。
+
+该命令会移动台灯，并独占摄像头和运动控制器；不要与完整 app、回放、录制或另一份视觉预览同时运行。按 `Q`、`Esc` 或终端中的 `Ctrl+C` 退出，程序会进入睡眠姿态并释放扭矩。
+
+已标定时，跟踪从人脸开始。把同一只手放到启动距离内，稳定张开后握拳可切换为手部跟随；握拳后张开会锁定当前位置。锁定时同样需要同一只近距离手在1.5秒内完成张开→握拳，才会恢复手部跟随，单独握拳不会生效；既有退出序列完成后恢复人脸跟随。近距离门槛只用于启动或恢复手部跟随，跟随过程中手可以移到更远处。
+
+重新标定手部跟随的启动距离和手势置信度：
+
+```bash
+DISPLAY=:0 .venv/bin/python -u scripts/vision_preview.py --hand-calibration
+```
+
+终端会逐步提示当前应保持的距离和手势。完成全部步骤后，结果会原子写入 `runtime_state/vision_hand_calibration.json`；再次运行会覆盖上一次设备标定。该目录属于 Pi5 运行状态，代码同步不会覆盖它。标定期间不会启动机械跟随。
+
+查看当前标定结果：
+
+```bash
+cat runtime_state/vision_hand_calibration.json
+```
+
+### 远程自然语言接口
+
+`lelamp.app` 同时提供局域网文本入口 `POST /api/v1/agent/text`。远程文本跳过 KWS、VAD 和 ASR，之后复用同一个 OpenClaw Agent、高层 Tools、动作仲裁和 TTS 播报。无需部署网站，也不要向局域网公开 OpenClaw Gateway 或底层 Tool 端口。
+
+远程接口监听地址和端口由 `voice.conf` 的 `LELAMP_REMOTE_BIND`、`LELAMP_REMOTE_PORT` 设置；独立 Bearer Token 只放在 `.env` 的 `LELAMP_REMOTE_TOKEN`，值见 [本机凭据汇总](../LELAMP_SECRETS.local.md)。相同 `request_id` 的重试返回缓存结果，不重复执行动作；同一对话持续复用 `session_id`。
+
+## 2. 麦克风和扬声器
+
+### 完整音频测试
+
+```bash
+uv run --no-sync -m lelamp.test.test_audio
+```
+
+依次播放 3 秒提示音、录音 3 秒、回放录音。看到 `Recording from microphone...` 时说话。
+
+### 只测试扬声器
+
+```bash
+speaker-test -D plughw:seeed2micvoicec,0 -c 2 -t sine -f 440
+```
+
+循环播放测试音，按 Ctrl+C 停止。
+
+### 查看播放、录音设备和调音量
+
+```bash
+aplay -l
+arecord -l
+alsamixer -c seeed2micvoicec
+```
+
+alsamixer 内左右键选通道、上下键调音量、M 切换静音、Esc 退出。调整完成后保存：
+
+```bash
+sudo alsactl store seeed2micvoicec
+```
+
+## 3. RGB 灯板
+
+```bash
+sudo /home/lamppi/.local/bin/uv run --no-sync -m lelamp.test.test_rgb
+```
+
+测试红、绿、蓝、彩色图案、优先级，最后熄灭。驱动已修复，红绿蓝已现场确认，官方完整测试已通过。
+
+查看驱动服务：
+
+```bash
+systemctl status lelamp-rgb-driver.service --no-pager
+journalctl -u lelamp-rgb-driver.service -b --no-pager
+```
+
+若服务未启动：
+
+```bash
+sudo systemctl start lelamp-rgb-driver.service
+```
+
+维护记录：`/home/lamppi/lelamp-drivers/RGB-REPAIR.md`。
+
+### 语音状态灯光
+
+启动新应用后，灯光会按语音阶段自动提示：暖橙表示等待“老灯”，青蓝表示监听，紫色表示思考，暖黄色表示播报，绿色短闪表示本轮完成，红色表示异常。状态灯由 `lelamp/lighting/controller.py` 统一管理，语音流程不直接写 RGB 数值。
+
+```bash
+uv run --no-sync -m lelamp.app
+```
+
+灯光状态测试不需要单独启动服务；用上面的应用入口测试完整流程。硬件 RGB 自检仍使用 `test_rgb`，不要与语音应用同时运行。若系统重装后设备权限恢复为 `root root`，重新加载 `/etc/udev/rules.d/99-ws281x-pwm.rules`，或暂时使用 `sudo`。
+
+### 书桌办公照明 WORK_LIGHT
+
+普通聊天中直接对老灯说“帮我照桌面”即可进入办公照明。默认移动到高照明姿态，使用中性偏暖白光，亮度 75%。办公模式会保持姿态、扭矩和主照明，语音阶段灯效不会覆盖它。
+
+需要低姿态或暖黄光时，在进入时明确说明；进入后可以说“亮一点”“暗一点”“切换高/低姿态”“换白光/暖黄光”。亮度每次调整 25%，范围为 50%～100%。这些调整只在本次办公模式中有效。
+
+说“关灯”或“退出办公模式”会渐暗并回到普通待机姿态；说“拜拜”会先播报告别，再进入统一睡眠姿态并释放扭矩。办公模式中 15 秒没有有效文字只会结束当前对话，照明继续保持。
+
+对应高层 Agent Tools 为 `enter_work_light`、`update_work_light`、`exit_work_light`，均由 `app.py` 统一协调，OpenClaw 不直接操作舵机或 RGB。
+
+参数位于 runtime 根目录的 `lighting.conf`：
+
+```ini
+OFFICE_LIGHT_R=255
+OFFICE_LIGHT_G=220
+OFFICE_LIGHT_B=180
+OFFICE_LIGHT_BRIGHTNESS_PERCENT=75
+WORK_LIGHT_FADE_SECONDS=0.8
+```
+
+亮度参数按相同比例缩放三个颜色通道，不改变灯光色温。
+
+暖黄照明参数：
+
+```ini
+WARM_LIGHT_R=255
+WARM_LIGHT_G=140
+WARM_LIGHT_B=40
+WARM_LIGHT_BRIGHTNESS_PERCENT=100
+```
+
+办公模式通过 `LightingController.work_light()` 调用；暖黄参数只作为办公模式的色调选项，不会改变下次进入时的默认白光配置。
+系统内核升级后，安装匹配的新内核头文件，再运行：
+
+```bash
+bash /home/lamppi/lelamp-drivers/rebuild-rgb-module.sh
+```
+
+## 4. 串口与舵机测试
+
+### 查看串口
+
+```bash
+ls -l /dev/ttyACM0
+ls -l /dev/serial/by-id/
+```
+
+如以后编号变化，可以重新查找：
+
+```bash
+uv run --no-sync lerobot-find-port
+```
+
+查找程序会提示拔插控制板 USB；当前端口已知，不必每次查找。
+
+### 舵机功能测试（会运动）
+
+```bash
+uv run --no-sync -m lelamp.test.test_motors --id lamppi --port /dev/ttyACM0
+```
+
+这个程序会尝试播放录制目录中的第一个动作，并非只读检测。运行前给灯头留出活动空间，不要同时运行另一份 record、replay 或语音控制程序。
+
+## 5. 录制自己的动作：record
+
+### 录制一段测试动作
+
+```bash
+uv run --no-sync -m lelamp.motion.record --id lamppi --port /dev/ttyACM0 --name my_first_motion --fps 30
+```
+
+1. 等待连接完成，看到提示后按 Enter 开始。
+2. 手动引导灯做动作，避免强推到机械限位。
+3. 按 Ctrl+C 结束录制。
+
+保存到：
+
+```text
+/home/lamppi/lelamp_runtime/lelamp/recordings/my_first_motion.csv
+```
+
+**同一个 name 会覆盖已有 CSV。** 下次录不同动作只改 `--name` 后的名字即可，ID 和串口不用改；名字不带 `.csv`。建议给自录动作加 `my_` 前缀，避免覆盖仓库自带动作。
+
+## 6. 回放自己的动作：replay
+
+```bash
+uv run --no-sync -m lelamp.replay --id lamppi --port /dev/ttyACM0 --name my_first_motion --fps 30
+```
+
+正常播完一次后进入睡眠姿态、释放扭矩并退出。回放会使舵机主动运动；首次上力时会从当前姿态平滑移动到录制的第一帧。
+
+启动缓动参数位于 `~/lelamp_runtime/motion.conf`：
+
+```ini
+# 从瘫痪的当前位置进入第一次动作首帧所需时间（秒）；越大越慢，0 表示立即进入。
+MOTION_STARTUP_TRANSITION_SECONDS=1.5
+
+# 已保持扭矩时，从当前姿态进入动作首帧所需时间（秒）。
+MOTION_ACTIVE_TRANSITION_SECONDS=0.5
+
+# 缓动控制帧率，通常保持 30。
+MOTION_TRANSITION_FPS=30
+
+# 动作结束后进入睡眠姿态所需时间（秒）。
+MOTION_SLEEP_TRANSITION_SECONDS=1.5
+
+# 到位后保持扭矩的时间（秒），随后断开。
+MOTION_SLEEP_HOLD_SECONDS=1.0
+
+# 唤醒后和普通动作完成后的待机姿态（待机时保持扭矩）。
+MOTION_STANDBY_BASE_YAW=0.5826983415508664
+MOTION_STANDBY_BASE_PITCH=-44.990548204158785
+MOTION_STANDBY_ELBOW_PITCH=58.46221829429962
+MOTION_STANDBY_WRIST_ROLL=47.634322373696875
+MOTION_STANDBY_WRIST_PITCH=-1.3968775677896446
+
+# 阅读照明模式姿态（当前仅保存，暂未自动切换）。
+MOTION_READING_BASE_YAW=-1.56880322725236
+MOTION_READING_BASE_PITCH=-23.345935727788287
+MOTION_READING_ELBOW_PITCH=28.501988510826322
+MOTION_READING_WRIST_ROLL=99.03769045709703
+MOTION_READING_WRIST_PITCH=-2.2185702547247246
+
+# 低照明阅读模式姿态。
+MOTION_READING_LOW_BASE_YAW=-1.2998655311519514
+MOTION_READING_LOW_BASE_PITCH=-39.79206049149339
+MOTION_READING_LOW_ELBOW_PITCH=86.7432611577552
+MOTION_READING_LOW_WRIST_ROLL=49.71932638331998
+MOTION_READING_LOW_WRIST_PITCH=-2.382908792111749
+```
+
+修改后，下次启动回放或运动服务时生效。这个时间只控制首次上力到动作首帧的过程，不改变录制动作本身的播放速度。
+
+正常播放结束后，程序会自动移动到 `motion.conf` 保存的睡眠姿态，再释放舵机扭矩。也可以单独执行：
+
+```bash
+uv run --no-sync -m lelamp.sleep --id lamppi --port /dev/ttyACM0
+```
+
+慢速回放同一段 30 fps 录制：
+
+```bash
+uv run --no-sync -m lelamp.replay --id lamppi --port /dev/ttyACM0 --name my_first_motion --fps 15
+```
+
+当前代码按指定 fps 逐行发送动作，不按 CSV 的 timestamp 还原节奏。30 fps 录制、15 fps 回放大约是半速；这不会改变首帧的目标姿态。
+
+## 7. 列出和回放已有动作
+
+### 列出动作
+
+```bash
+uv run --no-sync -m lelamp.list_recordings --id lamppi
+```
+
+当前代码实际上列出整个 `lelamp/recordings/` 下的 CSV，不按 ID 分目录。ID 主要用于选择校准数据。
+
+目前目录中有：`curious`、`excited`、`happy_wiggle`、`headshake`、`idle`、`nod`、`rotation`、`sad`、`scanning`、`shock`、`shy`、`wake_up`。这些是现有文件清单，不代表每段动作都已在本机验证。
+
+点头：
+
+```bash
+uv run --no-sync -m lelamp.replay --id lamppi --port /dev/ttyACM0 --name nod
+```
+
+摇头：
+
+```bash
+uv run --no-sync -m lelamp.replay --id lamppi --port /dev/ttyACM0 --name headshake
+```
+
+唤醒动作：
+
+```bash
+uv run --no-sync -m lelamp.replay --id lamppi --port /dev/ttyACM0 --name wake_up
+```
+
+其他动作仅替换 `--name`，不需要修改灯 ID 或串口。
+
+## 8. 舵机初始化与校准（非日常测试）
+
+目前已存在两套 `lamppi.json` 校准文件。只有首次设置、更换舵机或需要重新校准时才用本节，不要当作每次启动步骤。
+
+### 分配舵机 ID
+
+```bash
+uv run --no-sync -m lelamp.setup_motors --id lamppi --port /dev/ttyACM0
+```
+
+会写入舵机设置。按程序提示逐个连接指定舵机，不要直接把它当作所有舵机并联后的普通测试。
+
+### 依次校准 follower 与 leader
+
+```bash
+uv run --no-sync -m lelamp.calibrate --id lamppi --port /dev/ttyACM0
+```
+
+当前用户已有 dialout 权限，使用普通用户运行，以保持校准数据位于 `/home/lamppi/.cache/`；用 sudo 可能改用 root 的校准目录。
+
+当前本机代码还支持单独校准：
+
+```bash
+uv run --no-sync -m lelamp.calibrate --id lamppi --port /dev/ttyACM0 --follower-only
+```
+
+```bash
+uv run --no-sync -m lelamp.calibrate --id lamppi --port /dev/ttyACM0 --leader-only
+```
+
+校准文件：
+
+```text
+/home/lamppi/.cache/huggingface/lerobot/calibration/robots/lelamp_follower/lamppi.json
+/home/lamppi/.cache/huggingface/lerobot/calibration/teleoperators/lelamp_leader/lamppi.json
+```
+
+### 移动到校准中位姿态
+
+先退出应用和其他舵机程序。只读取当前值与校准中位目标：
+
+```bash
+uv run --no-sync -m lelamp.move_calibration_center --id lamppi --port /dev/ttyACM0
+```
+
+实际移动到中位并保持扭矩，供检查舵盘安装：
+
+```bash
+uv run --no-sync -m lelamp.move_calibration_center --id lamppi --port /dev/ttyACM0 --move
+```
+
+此维护命令使用自身缓动逻辑，不使用 motion.conf 的启动时长。检查结束后，回到保存的睡眠姿态并释放扭矩：
+
+```bash
+uv run --no-sync -m lelamp.sleep --id lamppi --port /dev/ttyACM0
+```
+
+## 9. 依赖维护和排错
+
+需要安装或恢复依赖时，普通用户执行：
+
+```bash
+uv sync --locked --extra hardware
+uv pip check
+```
+
+Pi 5 驱动已通过项目配置固定到 `/home/lamppi/lelamp-drivers/rpi-ws281x-python/library`，请保留该目录。
+
+| 现象 | 处理 |
+| --- | --- |
+| sudo 找不到 uv | 使用上面的完整路径 |
+| RGB 报 Hardware revision is not supported | 检查是否被换回旧版驱动，参阅 RGB-REPAIR.md |
+| /dev/ttyACM0 不存在 | 检查控制板供电和 USB 数据线，重新查找串口 |
+| 找不到录制文件 | 先 list_recordings，name 不带 .csv |
+| 校准数据找不到 | 保持 --id lamppi，并在 lamppi 用户下运行舵机命令 |
+| 串口忙或舵机通信异常 | 先退出其他占用串口的控制程序 |
+
+## 10. 语音助手：KWS → ASR → LLM → TTS
+
+新主入口（原 `lelamp.voice_assistant` 命令仍可用）：
+
+```bash
+cd ~/lelamp_runtime
+uv run --no-sync -m lelamp.app
+```
+
+完整匹配“点头”“点个头”“摇头”“开灯”“关灯”“睡眠”会执行本地功能；讨论动作或带否定的句子不会被关键词误触发。阅读和跟踪尚未接入实际设备，当前会明确提示未实现。
+
+运动使用 `motion.conf` 的参数；设备默认 `/dev/ttyACM0`、ID 默认 `lamppi`，可用环境变量 `MOTION_PORT`、`MOTION_LAMP_ID` 覆盖。不要同时运行校准、录制或另一份硬件测试。独立 replay 正常结束会进入睡眠；应用中的临时动作恢复持续模式或回待机。语音会话 15 秒没有有效文字后进入睡眠姿态并释放扭矩，但程序、KWS 和暖橙色等待灯效继续运行。
+
+Agent 可以为回答选择一个同步情绪动作：`happy_wiggle`、`excited`、`sad`、`shy`、`shock`、`nod`、`headshake` 或 `curious`。自主表达通过 `lelamp_queue_expression` 登记，在 TTS 第一块音频开始播放时执行；用户明确要求动作时使用即时的 `lelamp_play_motion`。普通回答可以不做动作，每轮最多一个；办公照明默认关闭自主情绪动作。
+
+底座转向使用 `lelamp_turn_base(direction, steps)`，每格 30 度，当前累计限制为左右各 60 度。新朝向会成为待机、照明和录制动作的中立朝向；`lelamp_reset_base_heading()` 回到最初正面。朝向保存在 `runtime_state/motion_heading.json`，不会修改校准文件或录制 CSV。
+
+“最左边、正前方、最右边”使用绝对工具 `lelamp_set_base_heading(position)`，对应 `left`、`front`、`right`；它可以从一侧极限直接移动到另一侧极限，不受单次相对步数限制。
+
+只检查重构逻辑、不启动麦克风或舵机：
+
+```bash
+uv run --no-sync python -m unittest discover -s tests -v
+```
+
+常用参数统一修改 runtime 根目录的 `voice.conf`，每项都有中文说明，重启语音助手生效。此文件优先于 `.env` 同名配置；API 密钥仍保留在 `.env`。断句默认使用本地 Silero VAD，并保留 1.0 秒预录缓存；RMS 阈值只作诊断和备用。ASR 默认在 EOF 前快速发送额外 0.5 秒静音，用于补齐识别尾字，不延长本地录音。
+
+Silero VAD 模型路径为 `vad_models/silero_vad.onnx`。缺少时执行：
+
+```bash
+mkdir -p vad_models
+curl -fL https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx \
+  -o vad_models/silero_vad.onnx
+```
+
+完整语音助手会在 Pi 本地监听唤醒词“小灯”，检测到后录音并通过 ASR 转文字，调用当前配置的 Pi Agent + DeepSeek 推理，再由可配置 TTS 后端从台灯扬声器播放回答。
+
+LLM 人格和行为规则采用 OpenClaw 风格文件，位于 runtime 根目录：`IDENTITY.md` 定义身份，`SOUL.md` 定义人格与说话风格，`AGENTS.md` 定义交互规则。语音助手每次调用 LLM 时自动读取这三个文件并组合成系统提示词；修改后重启程序生效。
+
+启动前确认 `~/lelamp_runtime/.env` 已配置 Agent、ASR 和控制接口密钥。密钥只放在 Pi 的 `.env` 中，不要提交到 GitHub；各项当前的实际值见 [本机凭据汇总](../LELAMP_SECRETS.local.md)。TTS 在 `voice.conf` 中选择：
+
+```ini
+# Edge Xiaoxiao；唤醒后预连接，当前关闭远程回退
+TTS_BACKEND=edge
+TTS_FALLBACK_BACKEND=none
+
+# 如需完全使用同事的服务
+# TTS_BACKEND=remote
+# 如需 Edge 失败后回退同事的远程服务：TTS_FALLBACK_BACKEND=remote
+```
+
+Edge 模式需要 `edge-tts` 和 `mpg123`，Pi5 已安装。修改配置后需重启 `lelamp.app`。
+
+连续对话和唤醒参数：
+
+```text
+KWS_SCORE=2.0
+KWS_THRESHOLD=0.05
+CONVERSATION_IDLE_SECONDS=15
+CONVERSATION_HISTORY_TURNS=6
+```
+
+启动：
+
+```bash
+uv run --no-sync -m lelamp.app
+```
+
+说“小灯”后再说问题。终端会显示：
+
+```text
+WAKE: xiao_deng; listening...
+LISTEN END | 延迟: 2.34 秒
+ASR: ...
+ASR 延迟: 0.86 秒
+LLM: ...
+LLM 延迟: 1.42 秒
+TTS 首包延迟: 0.31 秒
+TTS 流传输: 1.10 秒
+播放耗时: 2.60 秒
+本轮总耗时: 6.81 秒
+```
+
+台灯播报完成后会自动进入连续对话，不需要再次说“小灯”。连续 15 秒没有识别到包含汉字、字母或数字的有效文字后，会清空本次上下文并回到等待唤醒状态；噪声触发的空 ASR 或纯标点不会刷新这 15 秒。连续对话期间会保留最近 6 轮问答作为上下文。
+
+停止：
+
+```text
+Ctrl+C
+```
+
+新应用退出时会停止当前运动；如果连接过舵机，会尝试按配置回睡、保持后释放扭矩。单纯语音运行且没有连接舵机时，不会为了退出而启动舵机。
+
+麦克风使用 ALSA 的 `arecord` 读取 ReSpeaker，扬声器使用 `aplay` 播放。不要同时运行 `test_audio`、其他录音程序或占用声卡的服务。
+
+唤醒词诊断程序会把同一段声音同时送给 ReSpeaker 的 `channel_0`、`channel_1` 和当前默认的 `mean` 三路 KWS，保存三份 WAV 与命中统计；不启动 VAD、ASR、LLM、TTS、灯光或舵机：
+
+```bash
+uv run --no-sync -m lelamp.test.test_kws_diagnostic --duration 90
+```
+
+在终端显示 `KWS DIAGNOSTIC READY` 后，于 90 秒内自然说 20 次“小灯”，每次间隔约 1 秒。结束后将终端输出和 `voice_debug/kws_diagnostic/` 中最新目录发给我，我会据此选择输入声道和参数。
+
+当前实测 `channel_1=13`、`channel_0=9`、`mean=8`，因此主程序的 KWS 已配置为 `KWS_AUDIO_CHANNEL=1`。该参数只影响唤醒词，VAD 和 ASR 继续使用双声道平均。
+
+旧的单路唤醒词测试命令仍可用于快速检查：
+
+```bash
+uv run --no-sync -m lelamp.test.test_kws \
+  --model kws_models/sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01 \
+  --keywords kws_models/sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01/keywords_xiao_deng.txt
+```
+
+## 11. 语音主程序：后续配置项
+
+语音截断诊断默认开启（`VOICE_DEBUG=1`）。主程序每轮分别保存未补尾的 `*_capture.wav` 和实际发送的 `*_asr_input.wav`，同名 `.jsonl` 保存 ASR 响应。设置 `VOICE_DEBUG=0` 可关闭保存和额外等待。
+
+只测试麦克风和 VAD，不启动唤醒、ASR、LLM 或 TTS：
+
+```bash
+uv run --no-sync -m lelamp.test.test_voice_capture --label normal_sentence
+```
+
+程序先用 1 秒丢弃声卡启动瞬态并测量环境噪声，随后显示 `TEST READY`。终端每 100ms 显示 RMS、动态启动阈值、当前阈值和连续静音时间。文件保存在 `voice_debug/vad_tests/`：`*_capture.wav` 是原始录音，`*_asr_input.wav` 是追加 ASR 尾部静音后的对照文件，`.csv` 是逐块 VAD 数据。
+
+试听终端打印的录音路径（替换文件名）：
+
+```bash
+aplay -D plughw:seeed2micvoicec,0 voice_debug/文件名_capture.wav
+```
+
+`main.py` 和 `smooth_animation.py` 保留为旧 LiveKit 示例，不是当前应用入口。日常统一使用 `uv run --no-sync -m lelamp.app`。
+
+## 12. OpenClaw 联网搜索
+
+联网搜索由 `openclaw-plugin` 中的固定工具 `lelamp_web_search(query)` 提供。OpenClaw 每轮只加载固定工具 schema，不再动态探测远程 MCP，因此普通聊天和台灯控制不会承担 MCP `bundle-tools` 延迟。只有 Agent 真正调用搜索时，插件才连接搜索服务。
+
+## 13. 切换 OpenClaw / Pi Agent
+
+两套 Agent 只替换上层语义理解，共用 `LampApp`、Control API 和全部高层 Tool。当前默认是 Pi Agent + 官方 DeepSeek `deepseek-flash`：
+
+```ini
+AGENT_BACKEND=pi
+LLM_BASE_URL=https://api.deepseek.com
+LLM_MODEL=deepseek-flash
+```
+
+正常只需启动 `lelamp.app`：它会检查本机 Pi Agent；未运行时自动启动，并等到健康检查通过后才进入语音监听。若 Agent 后续退出，下一次连接失败会自动重启并安全重试一次。手动调试 Pi Agent 时才单独运行：
+
+```bash
+cd ~/lelamp_runtime
+./pi-agent/run.sh
+```
+
+自动启动失败时查看 `/tmp/lelamp-pi-agent.log`。app 退出时只关闭由它自己启动的 Agent；原本已独立运行的 Agent 保持运行。`AGENT_BACKEND=openclaw` 时不会启动 Pi Agent。
+
+要切回 OpenClaw，修改 `voice.conf`：
+
+```ini
+AGENT_BACKEND=openclaw
+```
+
+随后重启 `lelamp.app`。Pi 服务只监听 `127.0.0.1:18792`，`PI_AGENT_TOKEN` 只保存在 `.env`。对比脚本和结果位于 `benchmarks/`；测试使用假 Control API，不会驱动硬件。
+
+搜索顺序固定为：
+
+1. 千问 Dashscope WebSearch（主源）。
+2. 自建 `http://8.159.128.22:3000/mcp`（只在主源失败时备用）。
+
+两个连接在 Gateway 进程内复用；连接或调用失败后会丢弃，下次自动重连。每个源最多等待 6 秒，每个 Agent 回合最多搜索 4 次。搜索服务的地址、Token 和超时只保存在 Pi5 的 `~/.openclaw/openclaw.json` 中，不提交仓库。
+
+Pi5 的 `tools.alsoAllow` 只需放行 `lelamp_web_search`。旧的 `dashscope-web-search__bailian_web_search`、`web-search__search`、`zhipu-web-search-sse__webSearchStd` 已移除；`mcp.servers` 中的远程服务保持禁用，防止每轮重新发现工具。
+
+验证真实 Agent 链路无需启动 app：
+
+```bash
+set -a; . ~/lelamp_runtime/.env; set +a
+curl -sS -X POST http://127.0.0.1:18789/v1/chat/completions \
+  -H "Authorization: Bearer $OPENCLAW_GATEWAY_TOKEN" \
+  -H "x-openclaw-agent-id: lelamp" -H 'Content-Type: application/json' \
+  -d '{"model":"openclaw/lelamp","messages":[{"role":"user","content":"今天上海天气怎么样？"}],"user":"lelamp-test","stream":false,"max_tokens":512}'
+```
+
+日志在 `/tmp/openclaw/openclaw-<日期>.log`。普通请求若仍慢，查看 `prep` 和模型调用耗时；正常情况下不应再出现耗时数秒的远程 MCP `bundle-tools`。
+
+## 13. 通用多 Timer
+
+启动 `lelamp.app` 后可直接说“定时25分钟”“还有多久”“暂停第一个计时器”“继续计时”“再加10分钟”“取消计时”或“现在有哪些计时器”。多个目标不明确时，Agent 会先列出计时器再询问。
+
+Timer 仅保存在内存，app 重启后清空。多个 Timer 可以并存；到时后进入统一播报队列，不改变当前姿态或照明模式，也不会打断正在进行的回答。多个同时积压的纯文本提醒会合并播报，带动作或 Agent 任务的提醒仍逐条执行。
+
+Python 功能入口位于 `lelamp/timer/`，Agent 使用 `lelamp_create_timer`、`lelamp_pause_timer`、`lelamp_resume_timer`、`lelamp_cancel_timer`、`lelamp_add_timer_time`、`lelamp_get_timer_remaining` 和 `lelamp_list_timers`。所有时长参数及返回值均以秒为单位。
+
+## 14. Alarm 闹钟
+
+Alarm 用于具体钟表时间，与“25 分钟后”这类 Timer 分开。启动 app 后可以直接说：
+
+```text
+明天早上八点提醒我起床
+每天晚上十点提醒我休息
+工作日下午两点提醒我开会
+每周五下午四点半提醒我
+现在有哪些闹钟
+取消第一个闹钟
+```
+
+支持一次、每天、工作日以及每周指定星期重复。闹钟保存于 `runtime_state/alarms.json`，app 或 Pi5 重启后会恢复；关机期间错过的一次性闹钟不会补播，重复闹钟会排到下一次。
+
+所在城市和时区保存在 `runtime_state/location.json`。app 每次启动都会尝试重新定位，成功后覆盖这个配置；如果本次网络定位失败，就继续使用上一次成功保存的城市和时区。
+
+Agent 工具为 `lelamp_create_alarm`、`lelamp_cancel_alarm`、`lelamp_get_alarm` 和 `lelamp_list_alarms`。闹钟到期后进入与 Timer、对话回答共用的统一播报队列；既可播报提醒，也可执行明确指定的高层台灯动作，或重新调用 Agent 完成需要届时查询和判断的任务。
+
+## 来源和验证范围
+
+- [官方 Setup](https://github.com/humancomputerlab/LeLamp/blob/master/docs/4.%20LeLamp%20Setup.md)
+- [官方 Control](https://github.com/humancomputerlab/LeLamp/blob/master/docs/5.%20LeLamp%20Control.md)
+- [Runtime 仓库](https://github.com/humancomputerlab/lelamp_runtime)
+- 模块归属见 `ARCHITECTURE.md`；命令以 app、motion 和保留的 CLI/test 入口为准。
+- 本次整理未执行舵机初始化、校准、录制或回放，也未改写已有校准文件。
+# 提示音候选试听
+
+试听前先停止语音应用，避免扬声器音效被 KWS/VAD 当成麦克风输入：
+
+```bash
+pkill -TERM -f '^/home/lamppi/lelamp_runtime/.venv/bin/python3 -m lelamp.app$'
+pkill -TERM -f '^uv run --no-sync -m lelamp.app$'
+```
+
+分类试听三组候选：
+
+```bash
+cd ~/lelamp_runtime
+uv run --no-sync -m lelamp.test.test_sound_candidates wake
+uv run --no-sync -m lelamp.test.test_sound_candidates timer
+uv run --no-sync -m lelamp.test.test_sound_candidates alarm
+```
+
+也可以一次播放全部九个候选：
+
+```bash
+uv run --no-sync -m lelamp.test.test_sound_candidates all
+```
+
+试听结束后恢复应用：
+
+```bash
+cd ~/lelamp_runtime
+nohup uv run --no-sync -m lelamp.app >/tmp/lelamp-app.log 2>&1 &
+```
+
+候选选择格式示例：`WAKE-B、TIMER-A、ALARM-C`。试听命令只临时播放，不会修改 `sound.conf` 或启用正式提示音。
+
+## 独立 AEC / Barge-in 诊断
+
+首次在 Pi5 安装 WebRTC AEC 与 ALSA 管线依赖：
+
+```bash
+sudo apt-get install -y --no-install-recommends \
+  gstreamer1.0-tools gstreamer1.0-alsa \
+  gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+  gstreamer1.0-plugins-bad libwebrtc-audio-processing-dev
+```
+
+运行前先停止 `lelamp.app`，避免两个进程同时占用 ReSpeaker。第一步扫描麦克风通道和 0～200 ms reference delay；扫描期间保持安静：
+
+```bash
+cd ~/lelamp_runtime
+uv run --no-sync -m lelamp.test.test_aec_barge_in --mode scan
+```
+
+扫描结束后，将输出的最佳通道和 delay 传给真人插话测试，例如：
+
+```bash
+uv run --no-sync -m lelamp.test.test_aec_barge_in \
+  --mode interactive --channel channel_1 --delay-ms 140
+```
+
+为避免相邻语句因间隔太短被 VAD 合并，推荐使用终端逐句提示模式。看到 `>>>` 后只说该句，说完保持安静并等待下一条提示：
+
+```bash
+uv run --no-sync -m lelamp.test.test_aec_barge_in \
+  --mode interactive --interactive-duration 40 --guided \
+  --channel channel_0 --delay-ms 80 --suppression-level low
+```
+
+测试结果保存到 `voice_debug/aec/<时间>/`，包括 reference、原始麦克风、AEC clean、100 ms RMS/VAD 轨迹和资源统计。该诊断不启动 Agent、ASR、灯光、动作或正式语音助手。
+
+2026-09-17 自动测试的最佳参数为 `channel_1 + 140 ms`。30 秒纯回声测试得到 `22.56 dB` 抑制、clean VAD 零误触发、平均 CPU `4.42%`、峰值 RSS `17.91 MB`。真人插话测试尚未完成，在此之前不要把 AEC 接入正式语音链。
+
+随后完成的真人双讲测试表明，持续使用 AEC clean 音频会压掉近端人声；动态停止播放则能保留完整后半句。因此正式 app 采用混合方案：静止时由 `channel_0 + 80 ms + low` AEC/VAD 触发，运动时只由本地 KWS 明确停止词触发，随后切换原始麦克风并进入现有 ASR。
+
+动态停止播放实验使用系统 Python（需要 `python3-gst-1.0`）。它检测到开口后只停止扬声器，继续录制到说话结束：
+
+```bash
+/usr/bin/python3 lelamp/test/test_dynamic_barge_in.py \
+  --reference voice_debug/aec/20260917-145831/reference_fixture.wav \
+  --output voice_debug/aec/dynamic_utterance.wav
+```
+
+保存录音后程序会自动调用项目现有 ASR，并在同一终端打印 `ASR RESULT`。只想录音时可追加 `--no-asr`。
+
+正式 Barge-in 参数位于 `voice.conf`。启动 app 后，静止播报期间可直接说新问题；舵机运动期间先说“停、等等、行了、别说了、闭嘴”之一，也可以继续接完整问题。终端应依次显示：
+
+```text
+AEC active
+user speech detected
+# 或 interrupt keyword detected
+TTS cancelled
+listening resumed
+```
+
+关闭正式打断、恢复播完再听：
+
+```ini
+BARGE_IN_ENABLED=0
+```
+
+舵机噪声采集与离线分析：
+
+```bash
+uv run --no-sync -m lelamp.test.test_servo_noise_capture
+uv run --no-sync -m lelamp.test.analyze_servo_noise voice_debug/servo_noise/<时间>
+```
+
+采集会实际播放全部主要动作，结束后进入睡眠并释放扭矩。2026-09-17 实测没有跨动作稳定的共同窄带，固定 notch 无法减少 Silero 误触发，不应接入正式链路。
+
+### Pi Agent 优化参数与回退
+
+`voice.conf` 当前设置：
+
+```ini
+PI_AGENT_PROMPT_FILE=AGENT_RUNTIME.md
+PI_AGENT_HISTORY_TURNS=6
+PI_AGENT_STABLE_PREFIX=1
+PI_AGENT_MAX_TOKENS=256
+```
+
+恢复原提示词、无限历史和旧上下文布局，将上述值分别改为 `""`、`0`、`0`、`512` 后重启 Pi Agent。优化前完整代码的 GitHub 提交为 `ad11ef0`。本次优化不覆盖用户录制动作或校准。
+
+## 网页控制台（本机预览）
+
+```bash
+cd /home/yangyue/LeLamp/lelamp_runtime
+uv run --no-sync -m lelamp.web --demo
+```
+
+浏览器打开 `http://127.0.0.1:18793`；Ctrl-C 停止。所有操作使用模拟设备，退出删除模拟数据，不操作 Pi5。
+
+将来实机部署后，正常启动 `uv run --no-sync -m lelamp.app`，访问 `http://<Pi5地址>:18791/`（若修改远程端口则使用对应端口）。无需把 Token 填入网页；同事原文字接口仍需 Token。维护操作说明见 [网页文档](lelamp/web/README.md)。本轮尚未同步 Pi5。
+
+### 跟随抖动诊断（SSH终端＋HDMI预览）
+
+先停止已有预览/app，避免重复占用摄像头和串口。在Pi5项目目录运行：
+
+```bash
+DISPLAY=:0 .venv/bin/python -u scripts/tracking_diagnostic.py
+```
+
+等待跟随启动后输入数字并回车：1保持不动，2匀速左右移动，3快速移动并反向。每段15秒，结束后仍继续跟随；j回车标记抖动（可多次），0结束分段，q安全停止跟随、睡眠释放扭矩并退出。Ctrl-C同样通过现有预览关闭流程退出。记录在`runtime_state/tracking_diagnostics/`，每次独立JSONL；包含参数、响应矩阵、控制周期、目标时间/位置/速度、期望速度、命令、串口读写耗时和已有反馈。实际位置仅按原反馈频率记录，无新增串口读取。后台有界队列写盘，尾部报告丢记录数；终端报告写入错误。标记有人的反应延迟，分析时需看前后数秒。诊断不修改控制参数，测量仍存在小额软件开销。
+
+2026-09-28 抖动A/B实验：预览的绘图、缩放及全部OpenCV窗口操作改为独立显示进程；有界单帧队列满时丢显示帧，不等待窗口。运动参数、25Hz控制算法、串口读取频率和诊断命令不变。新的诊断日志应对比控制间隔P95/最大值及快速反向抖动，不能仅凭平均25Hz认定改善。q关闭显示进程并经原有app关闭流程睡眠释放扭矩。
+
+
+### 视觉分段延迟诊断
+停止其他视觉/运动进程后，在Pi5运行：
+```bash
+cd ~/lelamp_runtime
+DISPLAY=:0 .venv/bin/python -u scripts/vision_latency.py --seconds 90
+# 使用实际输出的文件名
+.venv/bin/python scripts/analyze_vision_latency.py runtime_state/tracking_diagnostics/latency-时间戳.jsonl
+```
+到时自动睡眠释放扭矩。报告说明见 `lelamp/vision/docs/LATENCY_MEASUREMENT.md`。
+
+
+### 补偿后的跟随响应诊断（2026-09-28）
+
+```bash
+cd ~/lelamp_runtime
+DISPLAY=:0 .venv/bin/python -u scripts/tracking_diagnostic.py
+```
+
+先停止其他app/预览。张开→握拳进入手部跟随后，按数字+回车：1静止，2匀速，3快速反向，4快速移停，5静止后快速起步。3/4/5有3秒准备及终端动作提示；始终握拳，避免触发锁定。水平和竖直分别重复，手留在画面内。每段15秒，到时只结束标记、不结束跟随；l标记迟滞，j标记抖动，均可不标记；q安全睡眠并退出。
+
+本轮额外记录速度限幅前后、制动后期望速度、加速度限制、目标ID、实际反馈、自运动补偿及视觉分段时间。诊断不改变参数、不新增串口读取；实际反馈沿用当前补偿启用时25Hz。提示时间不是用户真实动作起点，需用目标轨迹分析；视频曝光时间、真实机械启动仍不能由这些软件时间戳精确代表。退出后把日志路径提供给开发者。
+
+
+### 中心慢速小幅跟随诊断
+沿用 `DISPLAY=:0 .venv/bin/python -u scripts/tracking_diagnostic.py`。先张开→握拳进入手部跟随，再输入6回车（左右）或7回车（上下）。每段25秒：前5秒中心附近静止，中间15秒按提示慢速小幅往返，最后5秒静止。保持握拳和距离不变；j可标记顿挫，不标记也能分析。q安全退出。记录增加死区处理前误差及各轴是否在死区内；不改变死区、增益和运动限制。
+
+
+视觉速度轨迹试验：`MOTION_TRACKING_JERK_LIMIT_ENABLED=0`并重启跟随可回退（目标滤波保持0）。当前预览可同时录制运动，不需要键盘标记：
+
+```bash
+cd ~/lelamp_runtime
+DISPLAY=:0 .venv/bin/python -u scripts/vision_preview.py --follow --tracking-log "runtime_state/tracking_diagnostics/jerk-$(date +%s).jsonl"
+```
+
+不要与已运行的app/预览并发启动。需要终端分段标记时仍使用`tracking_diagnostic.py`，6/7慢速、4/5快速移停；Ctrl-C正常退出睡眠释放扭矩。轨迹试验可能增加加减速时间，待真人验收。

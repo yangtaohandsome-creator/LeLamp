@@ -1,0 +1,40 @@
+[project]
+name = "lelamp-runtime"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiohttp>=3.12.0",
+    "edge-tts>=7.2.8",
+    "feetech-servo-sdk>=1.0.0",
+    "httpx>=0.28.0",
+    "lerobot>=0.3.3",
+    "livekit-agents[openai]~=1.2",
+    "livekit-plugins-noise-cancellation~=0.2",
+    "numpy>=2.2.6",
+    "onnxruntime>=1.29.0",
+    "pvporcupine>=3.0.5",
+    "pvrecorder>=1.2.7",
+    "pyarrow==20.0.0",
+    "pyaudio>=0.2.14",
+    "python-dotenv",
+    "pygobject==3.50.0",
+    "sherpa-onnx>=1.13.7",
+    "sounddevice>=0.5.2",
+    "websockets>=15.0",
+]
+
+[tool.uv.sources]
+lerobot = { git = "https://github.com/huggingface/lerobot" }
+
+[project.optional-dependencies]
+hardware = [
+    "adafruit-circuitpython-neopixel",
+    "rpi-ws281x",
+]
+vision = [
+    "ai-edge-litert==2.2.0",
+    "mediapipe>=1.0.1",
+    "opencv-python-headless>=5.0.0",
+]

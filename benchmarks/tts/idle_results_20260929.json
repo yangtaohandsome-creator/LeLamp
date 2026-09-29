@@ -1,0 +1,80 @@
+[
+  {
+    "case": "short-0",
+    "idle": 0,
+    "ok": true,
+    "result": [
+      0.42573619198810775,
+      0.7036769330006791,
+      2.832
+    ],
+    "elapsed": 1.1299921169993468
+  },
+  {
+    "case": "fresh-long-0",
+    "idle": 0,
+    "ok": true,
+    "result": [
+      0.37198554299538955,
+      0.3146627600071952,
+      6.312
+    ],
+    "elapsed": 0.680058142010239
+  },
+  {
+    "case": "short-15",
+    "idle": 15,
+    "ok": true,
+    "result": [
+      0.23294512499705888,
+      0.18159549700794742,
+      2.832
+    ],
+    "elapsed": 0.40667425500578247
+  },
+  {
+    "case": "fresh-long-15",
+    "idle": 0,
+    "ok": true,
+    "result": [
+      0.48813056699873414,
+      0.07575977299711667,
+      6.312
+    ],
+    "elapsed": 0.5653304229927016
+  },
+  {
+    "case": "short-45",
+    "idle": 45,
+    "ok": false,
+    "error": "ClientConnectionResetError: Cannot write to closing transport"
+  },
+  {
+    "case": "fresh-long-45",
+    "idle": 0,
+    "ok": true,
+    "result": [
+      0.30624206199718174,
+      0.2567990009993082,
+      6.312
+    ],
+    "elapsed": 0.4772526570013724
+  },
+  {
+    "case": "short-90",
+    "idle": 90,
+    "ok": false,
+    "error": "ClientConnectionResetError: Cannot write to closing transport"
+  },
+  {
+    "case": "fresh-long-90",
+    "idle": 0,
+    "ok": true,
+    "result": [
+      0.8864006590010831,
+      1.3882139869965613,
+      6.312
+    ],
+    "elapsed": 1.6376473650016123
+  }
+]

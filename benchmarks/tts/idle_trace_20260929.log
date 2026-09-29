@@ -1,0 +1,66 @@
+{"case": "short-0", "stage": "connected"}
+{"case": "short-0", "stage": "synthesis_start", "connection_age_seconds": 0.0, "closed": false}
+{"case": "short-0", "stage": "request_sent"}
+{"case": "short-0", "stage": "first_message", "elapsed": 0.21795203399960883, "message_type": "1"}
+{"case": "short-0", "stage": "first_mp3", "elapsed": 0.42529060199740343}
+{"case": "short-0", "stage": "first_pcm", "elapsed": 0.42573619198810775}
+{"case": "short-0", "stage": "first_player_write", "elapsed": 0.4258841859991662}
+{"case": "short-0", "stage": "turn_end", "elapsed": 1.1290373829979217}
+{"case": "short-0", "stage": "synthesis_cleanup", "elapsed": 1.1298865659919102, "mp3_bytes": 16992, "pcm_bytes": 135936, "turn_ended": true, "decoder_exit": 0, "player_exit": 0}
+RESULT {"case": "short-0", "idle": 0, "ok": true, "result": [0.42573619198810775, 0.7036769330006791, 2.832], "elapsed": 1.1299921169993468}
+{"case": "fresh-long-0", "stage": "connected"}
+{"case": "fresh-long-0", "stage": "synthesis_start", "connection_age_seconds": 0.0, "closed": false}
+{"case": "fresh-long-0", "stage": "request_sent"}
+{"case": "fresh-long-0", "stage": "first_message", "elapsed": 0.16652622900437564, "message_type": "1"}
+{"case": "fresh-long-0", "stage": "first_mp3", "elapsed": 0.364336764003383}
+{"case": "fresh-long-0", "stage": "first_pcm", "elapsed": 0.37198554299538955}
+{"case": "fresh-long-0", "stage": "first_player_write", "elapsed": 0.3720926310052164}
+{"case": "fresh-long-0", "stage": "turn_end", "elapsed": 0.6790536879998399}
+{"case": "fresh-long-0", "stage": "synthesis_cleanup", "elapsed": 0.6799532949953573, "mp3_bytes": 37872, "pcm_bytes": 302976, "turn_ended": true, "decoder_exit": 0, "player_exit": 0}
+RESULT {"case": "fresh-long-0", "idle": 0, "ok": true, "result": [0.37198554299538955, 0.3146627600071952, 6.312], "elapsed": 0.680058142010239}
+{"case": "short-15", "stage": "connected"}
+{"case": "short-15", "stage": "synthesis_start", "connection_age_seconds": 15.015, "closed": false}
+{"case": "short-15", "stage": "request_sent"}
+{"case": "short-15", "stage": "first_message", "elapsed": 0.17934761599462945, "message_type": "1"}
+{"case": "short-15", "stage": "first_mp3", "elapsed": 0.22367824699904304}
+{"case": "short-15", "stage": "first_pcm", "elapsed": 0.23294512499705888}
+{"case": "short-15", "stage": "first_player_write", "elapsed": 0.23307528599980287}
+{"case": "short-15", "stage": "turn_end", "elapsed": 0.40533311100443825}
+{"case": "short-15", "stage": "synthesis_cleanup", "elapsed": 0.40654294499836396, "mp3_bytes": 16992, "pcm_bytes": 135936, "turn_ended": true, "decoder_exit": 0, "player_exit": 0}
+RESULT {"case": "short-15", "idle": 15, "ok": true, "result": [0.23294512499705888, 0.18159549700794742, 2.832], "elapsed": 0.40667425500578247}
+{"case": "fresh-long-15", "stage": "connected"}
+{"case": "fresh-long-15", "stage": "synthesis_start", "connection_age_seconds": 0.0, "closed": false}
+{"case": "fresh-long-15", "stage": "request_sent"}
+{"case": "fresh-long-15", "stage": "first_message", "elapsed": 0.48760910899727605, "message_type": "1"}
+{"case": "fresh-long-15", "stage": "first_mp3", "elapsed": 0.48774417699314654}
+{"case": "fresh-long-15", "stage": "first_pcm", "elapsed": 0.48813056699873414}
+{"case": "fresh-long-15", "stage": "first_player_write", "elapsed": 0.48826448699401226}
+{"case": "fresh-long-15", "stage": "turn_end", "elapsed": 0.5635447620006744}
+{"case": "fresh-long-15", "stage": "synthesis_cleanup", "elapsed": 0.5652118729922222, "mp3_bytes": 37872, "pcm_bytes": 302976, "turn_ended": true, "decoder_exit": 0, "player_exit": 0}
+RESULT {"case": "fresh-long-15", "idle": 0, "ok": true, "result": [0.48813056699873414, 0.07575977299711667, 6.312], "elapsed": 0.5653304229927016}
+{"case": "short-45", "stage": "connected"}
+{"case": "short-45", "stage": "synthesis_start", "connection_age_seconds": 45.016, "closed": false}
+RESULT {"case": "short-45", "idle": 45, "ok": false, "error": "ClientConnectionResetError: Cannot write to closing transport"}
+{"case": "fresh-long-45", "stage": "connected"}
+{"case": "fresh-long-45", "stage": "synthesis_start", "connection_age_seconds": 0.0, "closed": false}
+{"case": "fresh-long-45", "stage": "request_sent"}
+{"case": "fresh-long-45", "stage": "first_message", "elapsed": 0.16497900300601032, "message_type": "1"}
+{"case": "fresh-long-45", "stage": "first_mp3", "elapsed": 0.21919969099690206}
+{"case": "fresh-long-45", "stage": "first_pcm", "elapsed": 0.30624206199718174}
+{"case": "fresh-long-45", "stage": "first_player_write", "elapsed": 0.30640059200231917}
+{"case": "fresh-long-45", "stage": "turn_end", "elapsed": 0.47610079900186975}
+{"case": "fresh-long-45", "stage": "synthesis_cleanup", "elapsed": 0.47713727300288156, "mp3_bytes": 37872, "pcm_bytes": 302976, "turn_ended": true, "decoder_exit": 0, "player_exit": 0}
+RESULT {"case": "fresh-long-45", "idle": 0, "ok": true, "result": [0.30624206199718174, 0.2567990009993082, 6.312], "elapsed": 0.4772526570013724}
+{"case": "short-90", "stage": "connected"}
+{"case": "short-90", "stage": "synthesis_start", "connection_age_seconds": 90.052, "closed": false}
+RESULT {"case": "short-90", "idle": 90, "ok": false, "error": "ClientConnectionResetError: Cannot write to closing transport"}
+{"case": "fresh-long-90", "stage": "connected"}
+{"case": "fresh-long-90", "stage": "synthesis_start", "connection_age_seconds": 0.0, "closed": false}
+{"case": "fresh-long-90", "stage": "request_sent"}
+{"case": "fresh-long-90", "stage": "first_message", "elapsed": 0.19368992501404136, "message_type": "1"}
+{"case": "fresh-long-90", "stage": "first_mp3", "elapsed": 0.24796717600838747}
+{"case": "fresh-long-90", "stage": "first_pcm", "elapsed": 0.8864006590010831}
+{"case": "fresh-long-90", "stage": "first_player_write", "elapsed": 0.8865601160068763}
+{"case": "fresh-long-90", "stage": "turn_end", "elapsed": 1.6362739000032889}
+{"case": "fresh-long-90", "stage": "synthesis_cleanup", "elapsed": 1.6375048700137995, "mp3_bytes": 37872, "pcm_bytes": 302976, "turn_ended": true, "decoder_exit": 0, "player_exit": 0}
+RESULT {"case": "fresh-long-90", "idle": 0, "ok": true, "result": [0.8864006590010831, 1.3882139869965613, 6.312], "elapsed": 1.6376473650016123}

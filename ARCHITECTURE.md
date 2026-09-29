@@ -1,0 +1,64 @@
+# 当前架构与迁移说明
+
+最终设计以项目上层的 archetecture.md 为准。runtime 已按一个 app 总协调器和五个功能模块整理，不引入网关、事件总线或独立仲裁框架。
+
+| 位置 | 已有实现 |
+|---|---|
+| lelamp/app.py | 语音会话流程、可替换 Agent 调用、运动任务交接、WORK_LIGHT 与持续模式恢复 |
+| lelamp/agent/qwen.py | 原云端 Qwen 调用与人格文件读取 |
+| lelamp/voice/ | config、audio、kws、vad、asr、tts，以及 app 持有的轻量 AnnouncementQueue |
+| lelamp/audio/ | 本地短提示音解析与 ALSA 播放；不判断业务场景 |
+| lelamp/motion/ | 配置、可取消播放、睡眠、录制 |
+| lelamp/lighting/ | RGB 驱动、语音状态灯效和持续 WORK_LIGHT 照明 |
+| lelamp/vision/ | 已实现单一最新帧采集、YuNet/MediaPipe联合感知、生命周期、单人目标保持和只读健康状态；机械跟踪待开发 |
+| lelamp/timer/ | 独立的内存多计时器；只管理时间与完成事件，不依赖硬件或具体模式 |
+| lelamp/alarm/ | 持久化绝对时间提醒；支持单次、每天、工作日和每周指定星期，不依赖硬件或具体模式 |
+| lelamp/todo/ | 持久化快速记事；只保存和管理待办，不定时触发提醒 |
+| lelamp/location.py | 应用启动时刷新公网 IP 城市与 IANA 时区配置；成功则覆盖持久配置，失败则复用上次结果；不作为 Agent Tool，不参与功能仲裁 |
+| lelamp/service/ | 旧服务路径的兼容适配；运动服务转入 app，共用 Motion |
+| lelamp/follower、leader | 继续复用的舵机驱动 |
+| tests/ | 不依赖真实硬件的迁移回归测试 |
+
+## 兼容与配置
+
+- 新入口是 `uv run --no-sync -m lelamp.app`。
+- 原 voice_assistant、record、replay、sleep 命令继续使用；校准、居中、诊断入口保留。
+- voice.conf、motion.conf、.env 和根目录人格文件仍按原位置读取。用户录制、校准、模型不迁移、不覆盖。
+- 睡眠姿态仅在 motion.conf 中维护；播放与机械睡眠分开。普通临时动作回待机或恢复原持续模式，不自行睡眠。
+- 原 AnimationService 构造参数保留，缓动时间统一由 motion.conf 控制。
+- sleep 是机械休眠的统一出口：普通模式会话超时、明确睡眠指令、独立 replay 正常完成和应用正常退出才会调用。tracking和现有WORK_LIGHT一样，语音会话超时只结束会话并保留持续模式；再次唤醒只建立新语音会话，不破坏原姿态。睡眠后程序与 KWS 继续运行，再次唤醒会平滑进入待机姿态。
+- 运动任务失败或取消后不自动立即释放扭矩；正常睡眠才释放。关闭语音应用会取消运动并尝试睡眠。
+- WORK_LIGHT 由 app 持有姿态、色调和亮度状态；办公模式中的语音状态灯效被屏蔽，语音超时不收灯。所有办公灯调整通过 OpenClaw 高层 Tool 进入 app。
+- Agent 自主情绪通过 `queue_expression` 每轮最多登记一个高层动作；app 在 TTS 第一块音频开始播放时执行动作，结束后恢复原持续模式。用户明确要求的动作仍走即时 `play_motion`。办公照明默认拒绝自主情绪动作。
+- TimerManager 由 app 持有，支持多个计时器、暂停、恢复、取消、加时和查询。完成事件由 app 排队处理：固定延迟动作通过统一 ToolExecutor 执行，需要届时搜索或判断的任务由 app 重新调用 Agent。Timer 本身只保存回调信息，不绑定语音、灯光、动作、Agent 或 Focus Mode。
+- AlarmManager 同样由 app 持有，使用定位缓存中的 IANA 时区管理绝对时间，持久化未来提醒并支持单次、每天、工作日和每周指定星期重复。Alarm 与 Timer 共用 app 的完成通知通道；停机期间错过的 Alarm 不补播。
+- TodoManager 由 app 持有，使用 `runtime_state/todos.json` 保存待办。增删改查通过统一 ToolExecutor 和 Control API；待办本身不启动计时任务，主动提醒仍由 Timer/Alarm 负责。
+- 所有 app 内的 TTS 都经过同一个 AnnouncementQueue。本地语音回答优先于同时积压的远程回答和到期通知；用户已经开口时不会被插播。纯文本 Timer/Alarm 通知可按到达顺序合并，带 Tool、Agent 任务或情绪动作的事件保持独立。队列只串行播报，不是 Event Bus，业务处理和硬件仲裁仍在 app。
+- TTS 是 AnnouncementQueue 下方的可替换语音后端。当前可选 Edge Xiaoxiao 或同事的远程 TTS；Edge 在唤醒后预连接并流式解码播放，连接未就绪或有限重试失败时回退远程服务。预连接、重试与回退仅属于 voice/TTS 层，不改变队列顺序，也不引入本地模型或固定回答缓存。
+- 短提示音同样由 AnnouncementQueue 串行输出。`LampApp` 为唤醒、Timer、Alarm 等场景选择语义音效名，`SoundPlayer` 只读取 `sound.conf` 并播放本地 WAV；提示音和其后的 TTS 属于同一事件，期间不会插入其他播报。
+- location 是一次性的启动基础动作：app 启动时查询城市与 IANA 时区，成功后原子覆盖持久配置，失败时读取上一次有效配置。Agent 客户端附加该上下文，Alarm 直接读取同一时区；天气或 Alarm 请求不会再次调用定位服务，也不增加新的 Tool 轮次。
+- 新应用与兼容播放服务使用简单串口占用锁；原维护工具仍应单独运行。
+
+## 后续能力边界
+
+app 的 set_mode 接收模式及其执行协程，临时动作结束后恢复该协程。人脸tracking已使用同一长期任务接入图像闭环和Motion流式控制；reading尚未实现。正式视觉设计见`lelamp/vision/docs/VISION_DESIGN.md`；WORK_LIGHT将长期保留手势感知，手部引导作为其内部子状态复用统一运动仲裁。
+
+OpenClaw 与 Pi Agent Core 通过统一薄接口接入，并由 `AGENT_BACKEND` 选择。当前正式后端为 Pi Agent + DeepSeek `deepseek-flash`；两者均调用相同模型接口契约和高层 Control API，不能绕过 app 写舵机。切换 Agent 不改变语音、动作、灯光、Timer、Alarm 或播报队列。
+
+Barge-in 属于 Voice 基础能力。确认 TTS 已被打断后，`LampApp` 只向 Lighting 发出一次语义反馈：普通模式短闪，WORK_LIGHT 仅做亮度脉冲并恢复原照明。该反馈不是 Agent Tool，不参与语义决策。
+
+## 验证
+
+```bash
+uv run --no-sync python -m unittest discover -s tests -v
+```
+
+模拟检查覆盖动作独占、取消、模式恢复、睡眠保持顺序、整句匹配、采音转换、短句与静音。模拟通过不等于真实舵机、麦克风和云端服务已经现场验证。
+
+## 局域网网页控制端
+
+`lelamp/web/` 提供静态页面、HTTP 参数校验和维护设备适配；复用 RemoteTextServer 的监听器和同一个 LampApp，不建立新网关。网页对话走原 Agent/播报链，按钮走高层 ToolExecutor；普通网页代码不接触寄存器、关节角度或 RGB。
+
+LampApp 负责网页抢占、语音暂停/恢复、运动取消与独占维护交接。维护控制器只在 app 释放串口后处理录制/校准，并沿用串口锁；断线保持维护和无扭矩状态，不自动运动。Timer/Alarm 的状态正常推进，其播报和到期任务保留在统一 AnnouncementQueue，维护结束后再处理。队列只增加暂停与恢复，不承担业务仲裁。
+
+当前实现以 Pi Agent 为正式后端，取消请求并用 turn_id 拒绝迟到工具；已执行的副作用不回滚。详细接口、恢复与实机待验项目见 [网页说明](lelamp/web/README.md)。

@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-09-22T02:28:46.752009+00:00",
+  "camera": {
+    "width": 640,
+    "height": 480,
+    "fps": 30.0,
+    "fourcc": "MJPG",
+    "rotation": 180,
+    "output_width": 640,
+    "output_height": 480
+  },
+  "controlled_joints": [
+    "base_yaw",
+    "wrist_pitch"
+  ],
+  "controlled_motor_ids": [
+    1,
+    4
+  ],
+  "home_action": {
+    "base_yaw.pos": 0.5826983415508664,
+    "base_pitch.pos": -44.990548204158785,
+    "elbow_pitch.pos": 58.46221829429962,
+    "wrist_roll.pos": 0.47247329498767665,
+    "wrist_pitch.pos": 20.268644747393747
+  },
+  "requested_delta": 3.0,
+  "measured_positions": {
+    "base_yaw": {
+      "minus": -2.106678619453163,
+      "plus": 3.092783505154628
+    },
+    "wrist_pitch": {
+      "minus": 18.444266238973526,
+      "plus": 23.17562149157979
+    }
+  },
+  "response_matrix": [
+    [
+      -0.018825645824159,
+      -0.000543109128556786
+    ],
+    [
+      -0.0002807230427168923,
+      -0.022650950095103792
+    ]
+  ],
+  "phase_correlation_quality": {
+    "base_yaw": 0.23396051426728567,
+    "wrist_pitch": 0.30474757447838785
+  },
+  "condition_number": 1.2083360334306188,
+  "coordinate_transform": {
+    "applied_at": "2026-09-22T03:18:16.367853+00:00",
+    "reason": "Upright shared camera frame; exact 90-degree coordinate transform, no new motor measurement",
+    "from_rotation": 270,
+    "source_response_matrix": [
+      [
+        0.0002807230427168923,
+        0.022650950095103792
+      ],
+      [
+        -0.018825645824159,
+        -0.000543109128556786
+      ]
+    ],
+    "normalized_coordinates": "new_x=old_y; new_y=1-old_x"
+  }
+}

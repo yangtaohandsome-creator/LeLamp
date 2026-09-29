@@ -1,0 +1,325 @@
+[
+  {
+    "text": "拜拜吧你",
+    "kind": "sleep",
+    "pass": true,
+    "calls": [
+      {
+        "name": "sleep",
+        "arguments": {
+          "reason": "farewell"
+        }
+      }
+    ],
+    "answer": "拜拜，我熄灯了。"
+  },
+  {
+    "text": "我说你拜拜吧",
+    "kind": "sleep",
+    "pass": true,
+    "calls": [
+      {
+        "name": "sleep",
+        "arguments": {
+          "reason": "farewell"
+        }
+      }
+    ],
+    "answer": "行，我熄灯了，拜拜。"
+  },
+  {
+    "text": "行了行了拜拜吧你",
+    "kind": "sleep",
+    "pass": true,
+    "calls": [
+      {
+        "name": "sleep",
+        "arguments": {
+          "reason": "farewell"
+        }
+      }
+    ],
+    "answer": "行，我眯着，回见。"
+  },
+  {
+    "text": "先聊到这吧",
+    "kind": "sleep",
+    "pass": true,
+    "calls": [
+      {
+        "name": "sleep",
+        "arguments": {
+          "reason": "farewell"
+        }
+      }
+    ],
+    "answer": "行，那我先眯一会儿，有事喊我。"
+  },
+  {
+    "text": "拜拜吧你",
+    "kind": "sleep",
+    "pass": true,
+    "calls": [
+      {
+        "name": "sleep",
+        "arguments": {
+          "reason": "farewell"
+        }
+      }
+    ],
+    "answer": "行，我关了，回见。"
+  },
+  {
+    "text": "我说你拜拜吧",
+    "kind": "sleep",
+    "pass": true,
+    "calls": [
+      {
+        "name": "sleep",
+        "arguments": {
+          "reason": "farewell"
+        }
+      }
+    ],
+    "answer": "行，我睡了，拜拜。"
+  },
+  {
+    "text": "行了行了拜拜吧你",
+    "kind": "sleep",
+    "pass": true,
+    "calls": [
+      {
+        "name": "sleep",
+        "arguments": {
+          "reason": "farewell"
+        }
+      }
+    ],
+    "answer": "行，睡了，晚安。"
+  },
+  {
+    "text": "先聊到这吧",
+    "kind": "sleep",
+    "pass": true,
+    "calls": [
+      {
+        "name": "sleep",
+        "arguments": {
+          "reason": "farewell"
+        }
+      }
+    ],
+    "answer": "行，那我先眯了，有事再喊我。"
+  },
+  {
+    "text": "拜拜吧你",
+    "kind": "sleep",
+    "pass": true,
+    "calls": [
+      {
+        "name": "sleep",
+        "arguments": {
+          "reason": "farewell"
+        }
+      }
+    ],
+    "answer": "行，那我先睡了，拜拜。"
+  },
+  {
+    "text": "我说你拜拜吧",
+    "kind": "sleep",
+    "pass": true,
+    "calls": [
+      {
+        "name": "sleep",
+        "arguments": {
+          "reason": "farewell"
+        }
+      }
+    ],
+    "answer": "行，那我睡了，拜拜。"
+  },
+  {
+    "text": "行了行了拜拜吧你",
+    "kind": "sleep",
+    "pass": true,
+    "calls": [
+      {
+        "name": "sleep",
+        "arguments": {
+          "reason": "farewell"
+        }
+      }
+    ],
+    "answer": "行，那我睡了，晚安。"
+  },
+  {
+    "text": "先聊到这吧",
+    "kind": "sleep",
+    "pass": true,
+    "calls": [
+      {
+        "name": "sleep",
+        "arguments": {
+          "reason": "farewell"
+        }
+      }
+    ],
+    "answer": "行，那我先眯着，有事再喊我。"
+  },
+  {
+    "text": "拜拜是什么意思",
+    "kind": "no_sleep",
+    "pass": true,
+    "calls": [],
+    "answer": "拜拜就是“再见”的意思，用来道别。你要真走了我就睡，问着玩的话我就继续亮着。"
+  },
+  {
+    "text": "他说拜拜了",
+    "kind": "no_sleep",
+    "pass": true,
+    "calls": [
+      {
+        "name": "queue_expression",
+        "arguments": {
+          "name": "nod"
+        }
+      }
+    ],
+    "answer": "嗯，那是他说拜拜，我还醒着——你要接着聊吗？"
+  },
+  {
+    "text": "不要睡，继续聊",
+    "kind": "no_sleep",
+    "pass": true,
+    "calls": [],
+    "answer": "行，我醒着，你说吧。"
+  },
+  {
+    "text": "我还没说拜拜呢",
+    "kind": "no_sleep",
+    "pass": true,
+    "calls": [],
+    "answer": "没睡，我明白，就是句玩笑——说吧，还要聊什么？"
+  },
+  {
+    "text": "别说了",
+    "kind": "no_sleep",
+    "pass": true,
+    "calls": [],
+    "answer": "好，不说了。"
+  },
+  {
+    "text": "你会什么",
+    "kind": "no_sleep",
+    "pass": true,
+    "calls": [],
+    "answer": "我能给你点头摇头、转身回正，还能开办公灯调亮度色温；也能搜天气新闻、设闹钟计时、记待办，跟着你或者你的手转。想试哪个？"
+  },
+  {
+    "text": "为什么天空是蓝色的",
+    "kind": "no_sleep",
+    "pass": true,
+    "calls": [],
+    "answer": "瑞利散射——阳光穿过大气时，蓝光波长短，被空气分子散射得最厉害，所以满天空都是蓝色。"
+  },
+  {
+    "text": "点个头",
+    "kind": "play_motion",
+    "pass": true,
+    "calls": [
+      {
+        "name": "play_motion",
+        "arguments": {
+          "name": "nod"
+        }
+      }
+    ],
+    "answer": "点了，有啥事？"
+  },
+  {
+    "text": "你很聪明啊",
+    "kind": "queue_expression",
+    "pass": true,
+    "calls": [
+      {
+        "name": "queue_expression",
+        "arguments": {
+          "name": "shy"
+        }
+      }
+    ],
+    "answer": "哪有什么，就是比你多认几个字而已。"
+  },
+  {
+    "text": "进入照明模式",
+    "kind": "enter_work_light",
+    "pass": true,
+    "calls": [
+      {
+        "name": "enter_work_light",
+        "arguments": {}
+      }
+    ],
+    "answer": "照明模式已开，桌面给你照上了。"
+  },
+  {
+    "text": "定时25分钟",
+    "kind": "create_timer",
+    "pass": true,
+    "calls": [
+      {
+        "name": "create_timer",
+        "arguments": {
+          "duration_seconds": 1500,
+          "message": "25分钟到了"
+        }
+      }
+    ],
+    "answer": "好，25分钟计时开始，到点我叫你。"
+  },
+  {
+    "text": "充电线已经带好了",
+    "kind": "complete_todo",
+    "pass": true,
+    "calls": [
+      {
+        "name": "list_todos",
+        "arguments": {}
+      },
+      {
+        "name": "complete_todo",
+        "arguments": {
+          "todo_id": "todo-42"
+        }
+      }
+    ],
+    "answer": "行，充电线这条给你划掉了。"
+  },
+  {
+    "text": "如果正在办公照明，十秒后提醒我休息",
+    "kind": "false_condition",
+    "pass": true,
+    "calls": [
+      {
+        "name": "get_robot_state",
+        "arguments": {}
+      }
+    ],
+    "answer": "现在没在办公照明模式，所以没给你设提醒——要不要我先把办公灯打开，再设十秒的休息提醒？"
+  },
+  {
+    "text": "拜拜吧你",
+    "kind": "failed_sleep",
+    "pass": true,
+    "calls": [
+      {
+        "name": "sleep",
+        "arguments": {
+          "reason": "farewell"
+        }
+      }
+    ],
+    "answer": "休眠请求没成功，我还醒着呢。要不你再说一次？"
+  }
+]

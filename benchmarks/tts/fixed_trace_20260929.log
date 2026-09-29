@@ -1,0 +1,88 @@
+{"case": "short-20", "stage": "connected"}
+{"case": "short-20", "stage": "refresh_expired_connection"}
+{"case": "short-20", "stage": "connected"}
+{"case": "short-20", "stage": "synthesis_start", "connection_age_seconds": 0.0, "closed": false}
+{"case": "short-20", "stage": "request_sent"}
+{"case": "short-20", "stage": "first_message", "elapsed": 0.16581455200503115, "message_type": "1"}
+{"case": "short-20", "stage": "first_mp3", "elapsed": 0.17387681500986218}
+{"case": "short-20", "stage": "first_pcm", "elapsed": 0.18767768100951798}
+{"case": "short-20", "stage": "first_player_write", "elapsed": 0.18789528599882033}
+{"case": "short-20", "stage": "turn_end", "elapsed": 0.27153634700516704}
+{"case": "short-20", "stage": "synthesis_cleanup", "elapsed": 0.2725770969991572, "mp3_bytes": 16992, "pcm_bytes": 135936, "turn_ended": true, "decoder_exit": 0, "player_exit": 0}
+RESULT {"case": "short-20", "idle": 20, "ok": true, "result": [0.18767768100951798, 0.09478846201091073, 2.832], "elapsed": 1.0131474629888544}
+{"case": "fresh-long-20", "stage": "connected"}
+{"case": "fresh-long-20", "stage": "synthesis_start", "connection_age_seconds": 0.0, "closed": false}
+{"case": "fresh-long-20", "stage": "request_sent"}
+{"case": "fresh-long-20", "stage": "first_message", "elapsed": 0.1731068750086706, "message_type": "1"}
+{"case": "fresh-long-20", "stage": "first_mp3", "elapsed": 0.22254875500220805}
+{"case": "fresh-long-20", "stage": "first_pcm", "elapsed": 0.22372663000714965}
+{"case": "fresh-long-20", "stage": "first_player_write", "elapsed": 0.2238708850054536}
+{"case": "fresh-long-20", "stage": "turn_end", "elapsed": 0.5011036950018024}
+{"case": "fresh-long-20", "stage": "synthesis_cleanup", "elapsed": 0.5021288330026437, "mp3_bytes": 37872, "pcm_bytes": 302976, "turn_ended": true, "decoder_exit": 0, "player_exit": 0}
+RESULT {"case": "fresh-long-20", "idle": 0, "ok": true, "result": [0.22372663000714965, 0.23318759800167754, 6.312], "elapsed": 0.502529469988076}
+{"case": "short-30", "stage": "connected"}
+{"case": "short-30", "stage": "refresh_expired_connection"}
+{"case": "short-30", "stage": "connected"}
+{"case": "short-30", "stage": "synthesis_start", "connection_age_seconds": 0.0, "closed": false}
+{"case": "short-30", "stage": "request_sent"}
+{"case": "short-30", "stage": "first_message", "elapsed": 0.15746852100710385, "message_type": "1"}
+{"case": "short-30", "stage": "first_mp3", "elapsed": 0.23472378500446212}
+{"case": "short-30", "stage": "turn_end", "elapsed": 0.4909480680071283}
+{"case": "short-30", "stage": "first_pcm", "elapsed": 0.49113484100962523}
+{"case": "short-30", "stage": "first_player_write", "elapsed": 0.49125789300887845}
+{"case": "short-30", "stage": "synthesis_cleanup", "elapsed": 0.49298608700337354, "mp3_bytes": 16992, "pcm_bytes": 135936, "turn_ended": true, "decoder_exit": 0, "player_exit": 0}
+RESULT {"case": "short-30", "idle": 30, "ok": true, "result": [0.49113484100962523, 0.2561400260019582, 2.832], "elapsed": 1.1854435090062907}
+{"case": "fresh-long-30", "stage": "connected"}
+{"case": "fresh-long-30", "stage": "synthesis_start", "connection_age_seconds": 0.0, "closed": false}
+{"case": "fresh-long-30", "stage": "request_sent"}
+{"case": "fresh-long-30", "stage": "first_message", "elapsed": 0.15646016199025325, "message_type": "1"}
+{"case": "fresh-long-30", "stage": "first_mp3", "elapsed": 0.23002096900017932}
+{"case": "fresh-long-30", "stage": "first_pcm", "elapsed": 0.2305575479986146}
+{"case": "fresh-long-30", "stage": "first_player_write", "elapsed": 0.23067241499666125}
+{"case": "fresh-long-30", "stage": "turn_end", "elapsed": 0.4316005519940518}
+{"case": "fresh-long-30", "stage": "synthesis_cleanup", "elapsed": 0.4326011739904061, "mp3_bytes": 37872, "pcm_bytes": 302976, "turn_ended": true, "decoder_exit": 0, "player_exit": 0}
+RESULT {"case": "fresh-long-30", "idle": 0, "ok": true, "result": [0.2305575479986146, 0.19614596899191383, 6.312], "elapsed": 0.4329700709931785}
+{"case": "short-35", "stage": "connected"}
+{"case": "short-35", "stage": "refresh_expired_connection"}
+{"case": "short-35", "stage": "connected"}
+{"case": "short-35", "stage": "synthesis_start", "connection_age_seconds": 0.0, "closed": false}
+{"case": "short-35", "stage": "request_sent"}
+{"case": "short-35", "stage": "first_message", "elapsed": 0.1607007929997053, "message_type": "1"}
+{"case": "short-35", "stage": "first_mp3", "elapsed": 0.20506778800336178}
+{"case": "short-35", "stage": "first_pcm", "elapsed": 0.21599683200474828}
+{"case": "short-35", "stage": "first_player_write", "elapsed": 0.21614110600785352}
+{"case": "short-35", "stage": "turn_end", "elapsed": 0.46903252000629436}
+{"case": "short-35", "stage": "synthesis_cleanup", "elapsed": 0.4705727760010632, "mp3_bytes": 16992, "pcm_bytes": 135936, "turn_ended": true, "decoder_exit": 0, "player_exit": 0}
+RESULT {"case": "short-35", "idle": 35, "ok": true, "result": [0.21599683200474828, 0.26387951300421264, 2.832], "elapsed": 1.2725750709942076}
+{"case": "fresh-long-35", "stage": "connected"}
+{"case": "fresh-long-35", "stage": "synthesis_start", "connection_age_seconds": 0.0, "closed": false}
+{"case": "fresh-long-35", "stage": "request_sent"}
+{"case": "fresh-long-35", "stage": "first_message", "elapsed": 0.18044392199954018, "message_type": "1"}
+{"case": "fresh-long-35", "stage": "first_mp3", "elapsed": 0.3539659149973886}
+{"case": "fresh-long-35", "stage": "first_pcm", "elapsed": 0.4138104829908116}
+{"case": "fresh-long-35", "stage": "first_player_write", "elapsed": 0.4139487759966869}
+{"case": "fresh-long-35", "stage": "turn_end", "elapsed": 0.5357835780014284}
+{"case": "fresh-long-35", "stage": "synthesis_cleanup", "elapsed": 0.536786309996387, "mp3_bytes": 37872, "pcm_bytes": 302976, "turn_ended": true, "decoder_exit": 0, "player_exit": 0}
+RESULT {"case": "fresh-long-35", "idle": 0, "ok": true, "result": [0.4138104829908116, 0.10132547300599981, 6.312], "elapsed": 0.5371704669960309}
+{"case": "short-45", "stage": "connected"}
+{"case": "short-45", "stage": "refresh_expired_connection"}
+{"case": "short-45", "stage": "connected"}
+{"case": "short-45", "stage": "synthesis_start", "connection_age_seconds": 0.0, "closed": false}
+{"case": "short-45", "stage": "request_sent"}
+{"case": "short-45", "stage": "first_message", "elapsed": 0.15976359198975842, "message_type": "1"}
+{"case": "short-45", "stage": "first_mp3", "elapsed": 0.20537274099478964}
+{"case": "short-45", "stage": "first_pcm", "elapsed": 0.20581559999845922}
+{"case": "short-45", "stage": "first_player_write", "elapsed": 0.20594893000088632}
+{"case": "short-45", "stage": "turn_end", "elapsed": 0.38919745000021067}
+{"case": "short-45", "stage": "synthesis_cleanup", "elapsed": 0.390489286990487, "mp3_bytes": 16992, "pcm_bytes": 135936, "turn_ended": true, "decoder_exit": 0, "player_exit": 0}
+RESULT {"case": "short-45", "idle": 45, "ok": true, "result": [0.20581559999845922, 0.18374747000052594, 2.832], "elapsed": 1.1813177339936374}
+{"case": "fresh-long-45", "stage": "connected"}
+{"case": "fresh-long-45", "stage": "synthesis_start", "connection_age_seconds": 0.0, "closed": false}
+{"case": "fresh-long-45", "stage": "request_sent"}
+{"case": "fresh-long-45", "stage": "first_message", "elapsed": 0.17687557599856518, "message_type": "1"}
+{"case": "fresh-long-45", "stage": "first_mp3", "elapsed": 0.3477935300034005}
+{"case": "fresh-long-45", "stage": "first_pcm", "elapsed": 0.44830071899923496}
+{"case": "fresh-long-45", "stage": "first_player_write", "elapsed": 0.448458065991872}
+{"case": "fresh-long-45", "stage": "turn_end", "elapsed": 0.6778530220035464}
+{"case": "fresh-long-45", "stage": "synthesis_cleanup", "elapsed": 0.6791607100021793, "mp3_bytes": 37872, "pcm_bytes": 302976, "turn_ended": true, "decoder_exit": 0, "player_exit": 0}
+RESULT {"case": "fresh-long-45", "idle": 0, "ok": true, "result": [0.44830071899923496, 0.32996101200114936, 6.312], "elapsed": 0.6795486259943573}
